@@ -1,0 +1,13 @@
+[project]
+name = "qubics-py"
+version = "0.0.1"
+dependencies = [
+  "pygame>=2.5.0",
+  "imageio[ffmpeg]"
+]
+requires-python = ">=3.8"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
