@@ -1,13 +1,40 @@
 from functools import partial
+from os import error, wait
+from typing import Optional
 
 
-config = {
+_config = {
     'width': 384,
     'height': 768,
     'bg_color': (255, 255, 255),
     'fps': 60
 } 
 
+
+def get_config():
+    def merge(base: dict, override: dict, path=[]):
+        for key in override:
+            if key in base:
+                if isinstance(base[key], dict) and isinstance(override[key], dict):
+                    merge(base[key], override[key], path + [str(key)])
+                elif override[key] is not None:
+                    base[key] = override[key]
+            else:
+                base[key] = override[key]
+        return base
+
+    import argparse
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-o", "--output", type=str)
+    parser.add_argument("-d", "--duration", type=int)
+    parser.add_argument("-w", "--width", type=int)
+    parser.add_argument("-h", "--height", type=int)
+    parser.add_argument("--fps", type=int)
+    parsed_config = vars(parser.parse_args())
+
+    merged = merge(_config, parsed_config)
+    
+    return merged
 
 def create_bounds():
     from pygame import Rect
@@ -47,6 +74,7 @@ def get_player():
             systems.collide_boundary,
             systems.clean_collisions,
             systems.collide_spheres,
+            systems.subtract_health
         ],
         renderers=[
             renderers.sphere,
@@ -55,12 +83,12 @@ def get_player():
     )
 
 
-def export_backend(filename, duration):
+def export_backend():
     from backends.export import run
-    return partial(run, output_file=filename, duration=duration, config=config)
+    return partial(run, config=get_config())
 
 
 def interactive_backend():
     from backends.interactive import run
-    return partial(run, config=config)
+    return partial(run, config=get_config())
 

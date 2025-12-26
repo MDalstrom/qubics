@@ -70,3 +70,11 @@ def collide_spheres(world, entity):
                 other['collisions'].append(entity_idx)
 
 
+def subtract_health(_, entity):
+    if 'hp' not in entity: return;
+
+    collisions = entity.get('collisions')
+    if not collisions: return;
+    if len(collisions) > 0:
+        entity['hp'] -= 1
+

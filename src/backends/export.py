@@ -5,13 +5,12 @@ import numpy as np
 def run(
     player,
     *,
-    output_file,
-    duration,
     config
 ):
     import imageio
     surface = pygame.Surface((config['width'], config['height']))
-    total_frames = duration * config['fps']
+    total_frames = config['duration'] * config['fps']
+    output_file = config['output']
     print(f"Exporting {total_frames} frames to {output_file}...")
     
     with imageio.get_writer(output_file, fps=config['fps']) as writer:
