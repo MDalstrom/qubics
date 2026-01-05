@@ -1,6 +1,4 @@
 from functools import partial
-from os import error, wait
-from typing import Optional
 
 
 _config = {
@@ -36,6 +34,7 @@ def get_config():
     
     return merged
 
+
 def create_bounds():
     from pygame import Rect
     return {
@@ -45,40 +44,32 @@ def create_bounds():
     }
 
 
-def create_sphere(hp, x, y, radius, color, vx, vy):
-    return {
-        'sphere': True,
-        'hp': hp,
-        'x': x,
-        'y': y,
-        'radius': radius,
-        'color': color,
-        'vx': vx,
-        'vy': vy,
-        'collisions': []
-    }
-
-
 def get_player():
     import systems
     import renderers
     from player import play
+    from infrastructure import heroes
+    from infrastructure.world import create_world
+    
+    world = create_world()
+    heroes.create_armer(world, 25, 200.0, 150.0, 60, (255, 100, 100), 3.0, 2.0)
+    heroes.create_swordsman(world, 40, 500.0, 400.0, 50, (100, 100, 255), -2.5, -3.5)
+    world.add(create_bounds())
+    
     return partial(play, 
-        world=[
-            create_sphere(25, 200.0, 150.0, 60, (255, 100, 100), 3.0, 2.0),
-            create_sphere(40, 500.0, 400.0, 50, (100, 100, 255), -2.5, -3.5),
-            create_bounds()
-        ],
+        world=world.entities,
         systems=[
-            systems.move,
-            systems.collide_boundary,
-            systems.clean_collisions,
-            systems.collide_spheres,
-            systems.subtract_health
+            systems.movement_system,
+            systems.rotation_system,
+            systems.parent_system,
+            systems.boundary_collision_system,
+            systems.collision_system,
+            systems.damage_system,
+            systems.remove_dead_system
         ],
         renderers=[
-            renderers.sphere,
-            renderers.bounds
+            renderers.render_system,
+            renderers.bounds_render_system
         ]
     )
 

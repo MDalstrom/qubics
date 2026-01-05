@@ -1,7 +1,7 @@
 import pygame
 import sys
 
-from dependencies import export_backend, interactive_backend, get_player
+from infrastructure.dependencies import export_backend, interactive_backend, get_player
 
 pygame.init()
 run = None
