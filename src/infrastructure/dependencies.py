@@ -4,8 +4,7 @@ from functools import partial
 _config = {
     'width': 384,
     'height': 768,
-    'bg_color': (255, 255, 255),
-    'fps': 60
+    'bg_color': (255, 255, 255)
 } 
 
 
@@ -37,11 +36,12 @@ def get_config():
 
 def create_bounds():
     from pygame import Rect
-    return {
-        'bounds': True,
-        'rect': Rect(50, 50, 300, 600),
-        'color': (0, 0, 0)
-    }
+    from infrastructure.world import Entity
+    from components import Bounds
+    
+    entity = Entity()
+    entity.add_component(Bounds(Rect(50, 50, 300, 600), (0, 0, 0)))
+    return entity
 
 
 def get_player():
@@ -57,7 +57,7 @@ def get_player():
     world.add(create_bounds())
     
     return partial(play, 
-        world=world.entities,
+        world=world,
         systems=[
             systems.movement_system,
             systems.rotation_system,

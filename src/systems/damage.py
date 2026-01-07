@@ -1,15 +1,22 @@
-def damage_system(world, entity):
-    if 'health' not in entity or 'circle_collider' not in entity:
+from components import Health, CircleCollider, Damage, Destroyed
+from infrastructure.world import World, Entity
+
+
+def damage_system(world: World, entity: Entity) -> None:
+    health = entity.get_component(Health)
+    collider = entity.get_component(CircleCollider)
+    
+    if not health or not collider:
         return
     
-    collider = entity['circle_collider']
-    
-    for other_idx in collider['collisions']:
+    for other_idx in collider.collisions:
         other = world[other_idx]
-        if 'damage' in other:
-            entity['health']['hp'] -= other['damage']['value']()
+        damage = other.get_component(Damage)
+        if damage:
+            health.hp -= damage.value()
 
 
-def remove_dead_system(world, entity):
-    if 'health' in entity and entity['health']['hp'] <= 0:
-        entity['destroyed'] = True
+def remove_dead_system(world: World, entity: Entity) -> None:
+    health = entity.get_component(Health)
+    if health and health.hp <= 0:
+        entity.add_component(Destroyed())

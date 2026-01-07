@@ -1,20 +1,28 @@
-def movement_system(_, entity):
-    if 'transform' not in entity or 'velocity' not in entity:
-        return
-    
-    transform = entity['transform']
-    velocity = entity['velocity']
-    
-    transform['x'] += velocity['vx']
-    transform['y'] += velocity['vy']
+from components import Transform, Velocity
+from infrastructure.world import Entity
 
 
-def rotation_system(_, entity):
-    if 'transform' not in entity or 'velocity' not in entity:
+def movement_system(_, entity: Entity) -> None:
+    transform = entity.get_component(Transform)
+    velocity = entity.get_component(Velocity)
+    
+    if not transform or not velocity:
         return
     
-    transform = entity['transform']
-    velocity = entity['velocity']
+    wx, wy = transform.get_world_position()
+    wx += velocity.vx
+    wy += velocity.vy
+    transform.set_world_position(wx, wy)
+
+
+def rotation_system(_, entity: Entity) -> None:
+    transform = entity.get_component(Transform)
+    velocity = entity.get_component(Velocity)
     
-    transform['angle'] += velocity['angular_velocity']
-    velocity['angular_velocity'] *= 0.98
+    if not transform or not velocity:
+        return
+    
+    angle = transform.get_world_angle()
+    angle += velocity.angular_velocity
+    transform.set_world_angle(angle)
+    velocity.angular_velocity *= 0.98

@@ -1,19 +1,26 @@
 import math
+from components import Parent, Transform
+from infrastructure.world import World, Entity
 
 
-def parent_system(world, entity):
-    if 'parent' not in entity or 'transform' not in entity:
+def parent_system(world: World, entity: Entity) -> None:
+    parent = entity.get_component(Parent)
+    transform = entity.get_component(Transform)
+    
+    if not parent or not transform:
         return
     
-    parent_data = entity['parent']
-    owner = world[parent_data['owner'].index]
-    
-    if not owner or 'transform' not in owner:
+    owner = world[parent.owner.index]
+    if not owner:
         return
     
-    owner_transform = owner['transform']
-    angle = owner_transform['angle'] + parent_data['offset_angle']
-    distance = parent_data['offset_distance']
+    owner_transform = owner.get_component(Transform)
+    if not owner_transform:
+        return
     
-    entity['transform']['x'] = owner_transform['x'] + distance * math.cos(angle)
-    entity['transform']['y'] = owner_transform['y'] + distance * math.sin(angle)
+    angle = parent.offset_angle
+    distance = parent.offset_distance
+    
+    transform.local_x = distance * math.cos(angle)
+    transform.local_y = distance * math.sin(angle)
+    transform.parent = owner_transform
