@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TypeVar, cast
+from typing import TypeVar, cast, Callable
 
 
 @dataclass
@@ -15,20 +15,17 @@ _component_registry: dict[type, str] = {}
 
 
 def register_component_type(component_type: type, key: str | None = None) -> None:
-    """Register a component type globally. Key defaults to class name."""
     if key is None:
         key = component_type.__name__
     _component_registry[component_type] = key
 
 
 class Entity:
-    """Entity is a container for components"""
     
     def __init__(self):
         self._components: dict[str, object] = {}
     
     def add_component(self, component: object, key: str | None = None) -> None:
-        """Add a component. Key defaults to component class name."""
         component_type = type(component)
         if key is None:
             key = component_type.__name__
@@ -39,14 +36,12 @@ class Entity:
             register_component_type(component_type, key)
     
     def get_component(self, component_type: type[T]) -> T | None:
-        """Get a component by its type. Returns None if not present."""
         key = _component_registry.get(component_type)
         if key and key in self._components:
             return cast(T, self._components[key])
         return None
     
     def has_component(self, component_type: type) -> bool:
-        """Check if entity has a component."""
         return self.get_component(component_type) is not None
 
 
@@ -54,6 +49,7 @@ class Entity:
 class World:
     entities: list[Entity] = field(default_factory=list)
     _generation: int = field(default=0, init=False)
+    delta_time: float = field(default=0.0, init=False)
     
     def add(self, entity: Entity) -> EntityRef:
         index = len(self.entities)
@@ -61,13 +57,11 @@ class World:
         return EntityRef(index, self._generation)
     
     def get_entity(self, ref: EntityRef) -> Entity | None:
-        """Get entity by reference"""
         if not self.validate(ref):
             return None
         return self.entities[ref.index]
     
     def get_component(self, ref: EntityRef, component_type: type[T]) -> T | None:
-        """Get a component from an entity by reference"""
         entity = self.get_entity(ref)
         if not entity:
             return None
@@ -79,13 +73,28 @@ class World:
     def rebuild_indices(self) -> None:
         self._generation += 1
     
+    def query(self, *component_types: type) -> list[Entity]:
+        result = []
+        for entity in self.entities:
+            if all(entity.has_component(ct) for ct in component_types):
+                result.append(entity)
+        return result
+    
     def __iter__(self):
         return iter(self.entities)
     
     def __getitem__(self, index: int) -> Entity:
-        """Direct index access for internal use"""
         return self.entities[index]
 
 
 def create_world() -> World:
     return World()
+
+
+def for_each(*component_types: type) -> Callable[[Callable[[World, Entity], None]], Callable[[World], None]]:
+    def decorator(entity_fn: Callable[[World, Entity], None]) -> Callable[[World], None]:
+        def system(world: World) -> None:
+            for entity in world.query(*component_types):
+                entity_fn(world, entity)
+        return system
+    return decorator

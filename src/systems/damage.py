@@ -1,13 +1,11 @@
 from components import Health, CircleCollider, Damage, Destroyed
-from infrastructure.world import World, Entity
+from infrastructure.world import World, Entity, for_each
 
 
-def damage_system(world: World, entity: Entity, dt: float) -> None:
+@for_each(Health, CircleCollider)
+def damage_system(world: World, entity: Entity) -> None:
     health = entity.get_component(Health)
     collider = entity.get_component(CircleCollider)
-    
-    if not health or not collider:
-        return
     
     for other_idx in collider.collisions:
         other = world[other_idx]
@@ -16,7 +14,8 @@ def damage_system(world: World, entity: Entity, dt: float) -> None:
             health.hp -= damage.value()
 
 
-def remove_dead_system(world: World, entity: Entity, dt: float) -> None:
+@for_each(Health)
+def remove_dead_system(world: World, entity: Entity) -> None:
     health = entity.get_component(Health)
-    if health and health.hp <= 0:
+    if health.hp <= 0:
         entity.add_component(Destroyed())

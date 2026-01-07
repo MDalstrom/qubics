@@ -1,16 +1,13 @@
 import numpy as np
-from components import CircleCollider, Transform, Velocity, Health, Parent, Bounds
-from infrastructure.world import World, Entity
+from components import CircleCollider, Transform, Velocity, Health, Parent, Bounds, Destroyed
+from infrastructure.world import World, Entity, for_each
 
 
-def boundary_collision_system(world: World, entity: Entity, dt: float) -> None:
+@for_each(CircleCollider, Transform, Velocity, Health)
+def boundary_collision_system(world: World, entity: Entity) -> None:
     collider = entity.get_component(CircleCollider)
     transform = entity.get_component(Transform)
     velocity = entity.get_component(Velocity)
-    health = entity.get_component(Health)
-    
-    if not collider or not transform or not velocity or not health:
-        return
     
     bounds_entity = None
     for e in world:
@@ -38,79 +35,78 @@ def boundary_collision_system(world: World, entity: Entity, dt: float) -> None:
     transform.set_world_position(x, y)
 
 
-def collision_system(world: World, entity: Entity, dt: float) -> None:
-    collider1 = entity.get_component(CircleCollider)
-    transform1 = entity.get_component(Transform)
-    
-    if not collider1 or not transform1:
-        return
-    
+def collision_system(world: World) -> None:
     entities_with_colliders = [(i, e) for i, e in enumerate(world) 
-                                if e.get_component(CircleCollider) and e.get_component(Transform)]
-    entity_idx = next(i for i, e in entities_with_colliders if e is entity)
+                                if e.get_component(CircleCollider) 
+                                and e.get_component(Transform)
+                                and not e.get_component(Destroyed)]
     
-    collider1.collisions = []
-    
-    for i, other in entities_with_colliders:
-        if i <= entity_idx:
-            continue
+    for entity_idx, entity in entities_with_colliders:
+        collider1 = entity.get_component(CircleCollider)
+        transform1 = entity.get_component(Transform)
         
-        collider2 = other.get_component(CircleCollider)
-        transform2 = other.get_component(Transform)
+        collider1.collisions = []
         
-        def should_collide(a: Entity, b: Entity) -> bool:
-            parent_a = a.get_component(Parent)
-            parent_b = b.get_component(Parent)
+        for i, other in entities_with_colliders:
+            if i <= entity_idx:
+                continue
             
-            if parent_a:
-                health_b = b.get_component(Health)
-                return health_b is not None and b is not world[parent_a.owner.index]
-            if parent_b:
-                health_a = a.get_component(Health)
-                return health_a is not None and a is not world[parent_b.owner.index]
-            return a.get_component(Health) is not None and b.get_component(Health) is not None
+            collider2 = other.get_component(CircleCollider)
+            transform2 = other.get_component(Transform)
+            
+            def should_collide(a: Entity, b: Entity) -> bool:
+                parent_a = a.get_component(Parent)
+                parent_b = b.get_component(Parent)
+                
+                if parent_a:
+                    health_b = b.get_component(Health)
+                    return health_b is not None and b is not world[parent_a.owner.index]
+                if parent_b:
+                    health_a = a.get_component(Health)
+                    return health_a is not None and a is not world[parent_b.owner.index]
+                return a.get_component(Health) is not None and b.get_component(Health) is not None
 
-        if not should_collide(entity, other):
-            continue
-
-        x1, y1 = transform1.get_world_position()
-        x2, y2 = transform2.get_world_position()
-        dx = x2 - x1
-        dy = y2 - y1
-        dist = np.sqrt(dx**2 + dy**2)
-        min_dist = collider1.radius + collider2.radius
-        
-        if dist < min_dist and dist > 0:
-            parent_e = entity.get_component(Parent)
-            parent_o = other.get_component(Parent)
-            owner_of_entity = parent_e.owner.index if parent_e else None
-            owner_of_other = parent_o.owner.index if parent_o else None
-            if owner_of_entity == i or owner_of_other == entity_idx:
+            if not should_collide(entity, other):
                 continue
 
-            collider1.collisions.append(i)
-            collider2.collisions.append(entity_idx)
+            x1, y1 = transform1.get_world_position()
+            x2, y2 = transform2.get_world_position()
+            dx = x2 - x1
+            dy = y2 - y1
+            dist = np.sqrt(dx**2 + dy**2)
+            min_dist = collider1.radius + collider2.radius
             
-            velocity1 = entity.get_component(Velocity)
-            velocity2 = other.get_component(Velocity)
-            
-            if velocity1 and velocity2:
-                nx, ny = dx / dist, dy / dist
-                overlap = min_dist - dist
+            if dist < min_dist and dist > 0:
+                parent_e = entity.get_component(Parent)
+                parent_o = other.get_component(Parent)
+                owner_of_entity = parent_e.owner.index if parent_e else None
+                owner_of_other = parent_o.owner.index if parent_o else None
+                if owner_of_entity == i or owner_of_other == entity_idx:
+                    continue
+
+                collider1.collisions.append(i)
+                collider2.collisions.append(entity_idx)
                 
-                transform1.set_world_position(x1 - nx * overlap * 0.5, y1 - ny * overlap * 0.5)
-                transform2.set_world_position(x2 + nx * overlap * 0.5, y2 + ny * overlap * 0.5)
+                velocity1 = entity.get_component(Velocity)
+                velocity2 = other.get_component(Velocity)
                 
-                dvx = velocity1.vx - velocity2.vx
-                dvy = velocity1.vy - velocity2.vy
-                dot = dvx * nx + dvy * ny
-                
-                if dot > 0:
-                    velocity1.vx -= dot * nx
-                    velocity1.vy -= dot * ny
-                    velocity2.vx += dot * nx
-                    velocity2.vy += dot * ny
+                if velocity1 and velocity2:
+                    nx, ny = dx / dist, dy / dist
+                    overlap = min_dist - dist
                     
-                    torque = nx * dvy - ny * dvx
-                    velocity1.angular_velocity += torque * 0.01
-                    velocity2.angular_velocity -= torque * 0.01
+                    transform1.set_world_position(x1 - nx * overlap * 0.5, y1 - ny * overlap * 0.5)
+                    transform2.set_world_position(x2 + nx * overlap * 0.5, y2 + ny * overlap * 0.5)
+                    
+                    dvx = velocity1.vx - velocity2.vx
+                    dvy = velocity1.vy - velocity2.vy
+                    dot = dvx * nx + dvy * ny
+                    
+                    if dot > 0:
+                        velocity1.vx -= dot * nx
+                        velocity1.vy -= dot * ny
+                        velocity2.vx += dot * nx
+                        velocity2.vy += dot * ny
+                        
+                        torque = nx * dvy - ny * dvx
+                        velocity1.angular_velocity += torque * 0.01
+                        velocity2.angular_velocity -= torque * 0.01
