@@ -11,34 +11,19 @@ class EntityRef:
 T = TypeVar('T')
 
 
-_component_registry: dict[type, str] = {}
-
-
-def register_component_type(component_type: type, key: str | None = None) -> None:
-    if key is None:
-        key = component_type.__name__
-    _component_registry[component_type] = key
-
-
 class Entity:
     
     def __init__(self):
-        self._components: dict[str, object] = {}
+        self._components: dict[object, object] = {}
     
-    def add_component(self, component: object, key: str | None = None) -> None:
+    def add_component(self, component: type) -> None:
         component_type = type(component)
-        if key is None:
-            key = component_type.__name__
-        
-        self._components[key] = component
-        
-        if component_type not in _component_registry:
-            register_component_type(component_type, key)
+        self._components[component_type] = component
     
     def get_component(self, component_type: type[T]) -> T | None:
-        key = _component_registry.get(component_type)
-        if key and key in self._components:
-            return cast(T, self._components[key])
+        component = self._components.get(component_type)
+        if component is not None:
+            return cast(T, component)
         return None
     
     def has_component(self, component_type: type) -> bool:
@@ -85,10 +70,6 @@ class World:
     
     def __getitem__(self, index: int) -> Entity:
         return self.entities[index]
-
-
-def create_world() -> World:
-    return World()
 
 
 def for_each(*component_types: type) -> Callable[[Callable[[World, Entity], None]], Callable[[World], None]]:

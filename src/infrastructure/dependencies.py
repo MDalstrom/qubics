@@ -52,9 +52,9 @@ def get_player():
     import renderers
     from player import play
     from infrastructure import heroes
-    from infrastructure.world import create_world
+    from infrastructure.world import World
     
-    world = create_world()
+    world = World()
     heroes.create_armer(world, 25, 200.0, 150.0, 60, (255, 100, 100), 0.3, 0.2)
     heroes.create_swordsman(world, 40, 500.0, 400.0, 50, (100, 100, 255), -0.25, -0.35)
     world.add(create_bounds())
