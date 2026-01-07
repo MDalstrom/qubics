@@ -3,10 +3,8 @@ from components import Parent, Transform
 from infrastructure.world import World, Entity, for_each
 
 
-@for_each(Parent, Transform)
-def parent_system(world: World, entity: Entity) -> None:
-    parent = entity.get_component(Parent)
-    transform = entity.get_component(Transform)
+@for_each
+def parent_system(world: World, entity: Entity, parent: Parent, transform: Transform) -> None:
     
     owner = world[parent.owner.index]
     if not owner:

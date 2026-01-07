@@ -3,36 +3,29 @@ from components import CircleCollider, Transform, Velocity, Health, Parent, Boun
 from infrastructure.world import World, Entity, for_each
 
 
-@for_each(CircleCollider, Transform, Velocity, Health)
-def boundary_collision_system(world: World, entity: Entity) -> None:
-    collider = entity.get_component(CircleCollider)
-    transform = entity.get_component(Transform)
-    velocity = entity.get_component(Velocity)
-    
-    bounds_entity = None
-    for e in world:
-        if e.get_component(Bounds):
-            bounds_entity = e
-            break
-    
-    if not bounds_entity:
+def boundary_collision_system(world: World):
+    bounds = world.query_one(Bounds)
+    if not bounds:
         return
-    
-    bounds_component = bounds_entity.get_component(Bounds)
-    bounds_rect = bounds_component.rect
-    radius = collider.radius
-    
-    x, y = transform.get_world_position()
-    
-    if x - radius <= bounds_rect.left or x + radius >= bounds_rect.right:
-        velocity.vx = -velocity.vx
-        x = max(bounds_rect.left + radius, min(x, bounds_rect.right - radius))
-    
-    if y - radius <= bounds_rect.top or y + radius >= bounds_rect.bottom:
-        velocity.vy = -velocity.vy
-        y = max(bounds_rect.top + radius, min(y, bounds_rect.bottom - radius))
-    
-    transform.set_world_position(x, y)
+
+    @for_each
+    def inner(_: World, __: Entity, collider: CircleCollider, transform: Transform, velocity: Velocity) -> None:
+        bounds_rect = bounds.rect
+        radius = collider.radius
+        
+        x, y = transform.get_world_position()
+        
+        if x - radius <= bounds_rect.left or x + radius >= bounds_rect.right:
+            velocity.vx = -velocity.vx
+            x = max(bounds_rect.left + radius, min(x, bounds_rect.right - radius))
+        
+        if y - radius <= bounds_rect.top or y + radius >= bounds_rect.bottom:
+            velocity.vy = -velocity.vy
+            y = max(bounds_rect.top + radius, min(y, bounds_rect.bottom - radius))
+        
+        transform.set_world_position(x, y)
+
+    inner(world)
 
 
 def collision_system(world: World) -> None:

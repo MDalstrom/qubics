@@ -16,7 +16,7 @@ class Entity:
     def __init__(self):
         self._components: dict[object, object] = {}
     
-    def add_component(self, component: type) -> None:
+    def add_component(self, component: object) -> None:
         component_type = type(component)
         self._components[component_type] = component
     
@@ -58,6 +58,14 @@ class World:
     def rebuild_indices(self) -> None:
         self._generation += 1
     
+    def query_one(self, component_type: type[T]) -> T | None:
+        result = None
+        for entity in self.entities:
+            result = entity.get_component(component_type)
+            if result:
+                break
+        return result
+
     def query(self, *component_types: type) -> list[Entity]:
         result = []
         for entity in self.entities:
@@ -72,10 +80,22 @@ class World:
         return self.entities[index]
 
 
-def for_each(*component_types: type) -> Callable[[Callable[[World, Entity], None]], Callable[[World], None]]:
-    def decorator(entity_fn: Callable[[World, Entity], None]) -> Callable[[World], None]:
-        def system(world: World) -> None:
-            for entity in world.query(*component_types):
-                entity_fn(world, entity)
-        return system
-    return decorator
+import inspect
+from typing import get_type_hints
+
+def for_each(entity_fn: Callable) -> Callable[[World], None]:
+    sig = inspect.signature(entity_fn)
+    params = list(sig.parameters.values())[2:]  # skip world, entity
+    type_hints = get_type_hints(entity_fn)
+    component_types = [type_hints[p.name] for p in params]
+    def system(world: World) -> None:
+        for entity in world.entities:
+            components = []
+            for ct in component_types:
+                comp = entity.get_component(ct)
+                if comp is None:
+                    break
+                components.append(comp)
+            else:
+                entity_fn(world, entity, *components)
+    return system
