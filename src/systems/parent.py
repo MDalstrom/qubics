@@ -4,7 +4,7 @@ from infrastructure.world import World, Entity, for_each
 
 
 @for_each
-def parent_system(world: World, entity: Entity, parent: Parent, transform: Transform) -> None:
+def parent_system(world: World, _: Entity, parent: Parent, transform: Transform) -> None:
     
     owner = world[parent.owner.index]
     if not owner:

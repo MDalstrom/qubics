@@ -7,7 +7,7 @@ _config = {
     'bg_color': (255, 255, 255),
     'fps': 60,
     'duration': 10,
-    'delta_time': 1000.0 / 120.0
+    'delta_time': 1.0 / 120.0
 } 
 
 
@@ -55,13 +55,15 @@ def get_player():
     from infrastructure.world import World
     
     world = World()
-    heroes.create_armer(world, 25, 200.0, 150.0, 60, (255, 100, 100), 0.3, 0.2)
-    heroes.create_swordsman(world, 40, 500.0, 400.0, 50, (100, 100, 255), -0.25, -0.35)
+    heroes.create_armer(world, 40, 400.0, 150.0, 60, (255, 100, 100), 0, 20)
+    heroes.create_swordsman(world, 25, 200.0, 400.0, 50, (100, 100, 255), 0, 0)
     world.add(create_bounds())
     
     return partial(play, 
         world=world,
         systems=[
+            systems.save_state_system,
+            systems.acceleration_system,
             systems.movement_system,
             systems.rotation_system,
             systems.parent_system,

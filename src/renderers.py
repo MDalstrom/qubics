@@ -6,7 +6,7 @@ from infrastructure.world import Entity
 font = Font("Monaco", size=32)
 
 
-def render_system(surface, entity: Entity):
+def render_system(surface, entity: Entity, alpha: float = 1.0):
     renderable = entity.get_component(Renderable)
     transform = entity.get_component(Transform)
     
@@ -16,7 +16,7 @@ def render_system(surface, entity: Entity):
     if renderable.shape == 'circle':
         MAX_COORD = 30000
         MAX_RADIUS = 30000
-        x, y = transform.get_world_position()
+        x, y = transform.get_interpolated_world_position(alpha)
         x = int(round(x))
         y = int(round(y))
         radius = int(round(renderable.radius))
@@ -38,7 +38,7 @@ def render_system(surface, entity: Entity):
             return surface.blit(text_surface, text_rect)
 
 
-def bounds_render_system(surface, entity: Entity):
+def bounds_render_system(surface, entity: Entity, alpha: float = 1.0):
     bounds = entity.get_component(Bounds)
     if not bounds:
         return

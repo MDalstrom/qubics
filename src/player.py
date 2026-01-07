@@ -2,7 +2,7 @@ from infrastructure.world import World
 from components import Destroyed
 
 
-def play(surface, world: World, systems, renderers, dt: float = 0):
+def play(surface, world: World, systems, renderers, dt: float = 0, alpha: float = 1.0):
     
     world.delta_time = dt
     
@@ -14,5 +14,5 @@ def play(surface, world: World, systems, renderers, dt: float = 0):
         for entity in world:
             if entity.get_component(Destroyed):
                 continue
-            renderer(surface, entity)
+            renderer(surface, entity, alpha)
 

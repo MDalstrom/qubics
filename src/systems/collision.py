@@ -1,5 +1,5 @@
 import numpy as np
-from components import CircleCollider, Transform, Velocity, Health, Parent, Bounds, Destroyed
+from components import CircleCollider, Transform, Rigidbody, Health, Parent, Bounds, Destroyed
 from infrastructure.world import World, Entity, for_each
 
 
@@ -9,19 +9,29 @@ def boundary_collision_system(world: World):
         return
 
     @for_each
-    def inner(_: World, __: Entity, collider: CircleCollider, transform: Transform, velocity: Velocity) -> None:
+    def inner(_: World, __: Entity, collider: CircleCollider, transform: Transform, rigidbody: Rigidbody) -> None:
         bounds_rect = bounds.rect
         radius = collider.radius
         
         x, y = transform.get_world_position()
         
-        if x - radius <= bounds_rect.left or x + radius >= bounds_rect.right:
-            velocity.vx = -velocity.vx
-            x = max(bounds_rect.left + radius, min(x, bounds_rect.right - radius))
+        if x - radius <= bounds_rect.left:
+            rigidbody.vx = -rigidbody.vx
+            penetration = bounds_rect.left - (x - radius)
+            x = bounds_rect.left + radius + penetration
+        elif x + radius >= bounds_rect.right:
+            rigidbody.vx = -rigidbody.vx
+            penetration = (x + radius) - bounds_rect.right
+            x = bounds_rect.right - radius - penetration
         
-        if y - radius <= bounds_rect.top or y + radius >= bounds_rect.bottom:
-            velocity.vy = -velocity.vy
-            y = max(bounds_rect.top + radius, min(y, bounds_rect.bottom - radius))
+        if y - radius <= bounds_rect.top:
+            rigidbody.vy = -rigidbody.vy
+            penetration = bounds_rect.top - (y - radius)
+            y = bounds_rect.top + radius + penetration
+        elif y + radius >= bounds_rect.bottom:
+            rigidbody.vy = -rigidbody.vy
+            penetration = (y + radius) - bounds_rect.bottom
+            y = bounds_rect.bottom - radius - penetration
         
         transform.set_world_position(x, y)
 
@@ -36,7 +46,9 @@ def collision_system(world: World) -> None:
     
     for entity_idx, entity in entities_with_colliders:
         collider1 = entity.get_component(CircleCollider)
+        assert(collider1)
         transform1 = entity.get_component(Transform)
+        assert(transform1)
         
         collider1.collisions = []
         
@@ -45,7 +57,9 @@ def collision_system(world: World) -> None:
                 continue
             
             collider2 = other.get_component(CircleCollider)
+            assert(collider2)
             transform2 = other.get_component(Transform)
+            assert(transform2)
             
             def should_collide(a: Entity, b: Entity) -> bool:
                 parent_a = a.get_component(Parent)
@@ -58,7 +72,7 @@ def collision_system(world: World) -> None:
                     health_a = a.get_component(Health)
                     return health_a is not None and a is not world[parent_b.owner.index]
                 return a.get_component(Health) is not None and b.get_component(Health) is not None
-
+            
             if not should_collide(entity, other):
                 continue
 
@@ -80,26 +94,54 @@ def collision_system(world: World) -> None:
                 collider1.collisions.append(i)
                 collider2.collisions.append(entity_idx)
                 
-                velocity1 = entity.get_component(Velocity)
-                velocity2 = other.get_component(Velocity)
+                rigidbody1 = entity.get_component(Rigidbody)
+                rigidbody2 = other.get_component(Rigidbody)
                 
-                if velocity1 and velocity2:
+                if rigidbody1 and rigidbody2:
                     nx, ny = dx / dist, dy / dist
                     overlap = min_dist - dist
                     
                     transform1.set_world_position(x1 - nx * overlap * 0.5, y1 - ny * overlap * 0.5)
                     transform2.set_world_position(x2 + nx * overlap * 0.5, y2 + ny * overlap * 0.5)
                     
-                    dvx = velocity1.vx - velocity2.vx
-                    dvy = velocity1.vy - velocity2.vy
+                    # Combined properties
+                    restitution = min(rigidbody1.restitution, rigidbody2.restitution)
+                    friction = (rigidbody1.friction + rigidbody2.friction) * 0.5
+                    
+                    dvx = rigidbody1.vx - rigidbody2.vx
+                    dvy = rigidbody1.vy - rigidbody2.vy
+                    
+                    # Normal impulse
                     dot = dvx * nx + dvy * ny
                     
                     if dot > 0:
-                        velocity1.vx -= dot * nx
-                        velocity1.vy -= dot * ny
-                        velocity2.vx += dot * nx
-                        velocity2.vy += dot * ny
+                        impulse_scalar = (1 + restitution) * dot
                         
-                        torque = nx * dvy - ny * dvx
-                        velocity1.angular_velocity += torque * 0.01
-                        velocity2.angular_velocity -= torque * 0.01
+                        # Apply normal impulse
+                        rigidbody1.vx -= impulse_scalar * nx * 0.5
+                        rigidbody1.vy -= impulse_scalar * ny * 0.5
+                        rigidbody2.vx += impulse_scalar * nx * 0.5
+                        rigidbody2.vy += impulse_scalar * ny * 0.5
+                        
+                        # Apply friction/torque
+                        tx, ty = -ny, nx  # Tangent vector
+                        vt = dvx * tx + dvy * ty
+                        
+                        # Friction impulse
+                        friction_impulse = vt * friction
+                        
+                        rigidbody1.vx -= friction_impulse * tx * 0.5
+                        rigidbody1.vy -= friction_impulse * ty * 0.5
+                        rigidbody2.vx += friction_impulse * tx * 0.5
+                        rigidbody2.vy += friction_impulse * ty * 0.5
+                        
+                        # Torque from collision
+                        # Lever arm is radius
+                        r1 = collider1.radius
+                        r2 = collider2.radius
+                        
+                        # Simple torque model: force at surface causes rotation
+                        # Tangential force creates torque
+                        torque_force = friction_impulse
+                        rigidbody1.angular_velocity -= torque_force * (1.0 / r1) * 2.0 
+                        rigidbody2.angular_velocity += torque_force * (1.0 / r2) * 2.0
