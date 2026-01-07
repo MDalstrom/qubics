@@ -2,7 +2,10 @@
 	.venv/bin/pip install .
 	touch .venv/.deps-installed
 
+PY := .venv/bin/python3
+
 exp: .venv/.deps-installed
-	.venv/bin/python3 src/main.py export $(output) $(duration)
+	$(PY) src/main_export.py --output=output.mp4 --duration=10 --fps=60
+
 run: .venv/.deps-installed
-	.venv/bin/python3 src/main.py --fps=120
+	$(PY) src/main_run.py --fps=120
