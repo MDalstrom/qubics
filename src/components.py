@@ -136,5 +136,4 @@ class Transform:
         return matrix
 
 
-# Forward reference resolution
 from infrastructure.world import EntityRef

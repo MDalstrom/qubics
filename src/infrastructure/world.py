@@ -10,7 +10,7 @@ class EntityRef:
 
 T = TypeVar('T')
 
-# Global component registry shared across all entities
+
 _component_registry: dict[type, str] = {}
 
 
@@ -35,7 +35,6 @@ class Entity:
         
         self._components[key] = component
         
-        # Auto-register component type globally if not already registered
         if component_type not in _component_registry:
             register_component_type(component_type, key)
     

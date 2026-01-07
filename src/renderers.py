@@ -14,7 +14,6 @@ def render_system(surface, entity: Entity):
         return
     
     if renderable.shape == 'circle':
-        # clamp to safe ranges to avoid pygame/gfxdraw OverflowError
         MAX_COORD = 30000
         MAX_RADIUS = 30000
         x, y = transform.get_world_position()
@@ -26,7 +25,6 @@ def render_system(surface, entity: Entity):
         if radius <= 0:
             return
         if abs(x) > MAX_COORD or abs(y) > MAX_COORD or radius > MAX_RADIUS:
-            # skip rendering if values are out of drawable range
             return
 
         gfxdraw.aacircle(surface, x, y, radius, color)

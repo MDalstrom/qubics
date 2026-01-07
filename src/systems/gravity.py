@@ -2,7 +2,7 @@ from components import Velocity, Acceleration, Health
 from infrastructure.world import World, Entity
 
 
-def gravity_system(world: World, entity: Entity) -> None:
+def gravity_system(world: World, entity: Entity, dt: float) -> None:
     velocity = entity.get_component(Velocity)
     acceleration = entity.get_component(Acceleration)
     health = entity.get_component(Health)
@@ -10,5 +10,5 @@ def gravity_system(world: World, entity: Entity) -> None:
     if not velocity or not acceleration or not health:
         return
 
-    velocity.vx += acceleration.ax
-    velocity.vy += acceleration.ay
+    velocity.vx += acceleration.ax * dt
+    velocity.vy += acceleration.ay * dt

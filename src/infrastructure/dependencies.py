@@ -4,7 +4,10 @@ from functools import partial
 _config = {
     'width': 384,
     'height': 768,
-    'bg_color': (255, 255, 255)
+    'bg_color': (255, 255, 255),
+    'fps': 60,
+    'duration': 10,
+    'delta_time': 1000.0 / 120.0
 } 
 
 
@@ -52,8 +55,8 @@ def get_player():
     from infrastructure.world import create_world
     
     world = create_world()
-    heroes.create_armer(world, 25, 200.0, 150.0, 60, (255, 100, 100), 3.0, 2.0)
-    heroes.create_swordsman(world, 40, 500.0, 400.0, 50, (100, 100, 255), -2.5, -3.5)
+    heroes.create_armer(world, 25, 200.0, 150.0, 60, (255, 100, 100), 0.3, 0.2)
+    heroes.create_swordsman(world, 40, 500.0, 400.0, 50, (100, 100, 255), -0.25, -0.35)
     world.add(create_bounds())
     
     return partial(play, 

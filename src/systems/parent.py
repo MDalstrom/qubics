@@ -3,7 +3,7 @@ from components import Parent, Transform
 from infrastructure.world import World, Entity
 
 
-def parent_system(world: World, entity: Entity) -> None:
+def parent_system(world: World, entity: Entity, dt: float) -> None:
     parent = entity.get_component(Parent)
     transform = entity.get_component(Transform)
     

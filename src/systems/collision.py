@@ -3,8 +3,7 @@ from components import CircleCollider, Transform, Velocity, Health, Parent, Boun
 from infrastructure.world import World, Entity
 
 
-def boundary_collision_system(world: World, entity: Entity) -> None:
-    # Only spheres (entities with health) collide with bounds
+def boundary_collision_system(world: World, entity: Entity, dt: float) -> None:
     collider = entity.get_component(CircleCollider)
     transform = entity.get_component(Transform)
     velocity = entity.get_component(Velocity)
@@ -13,7 +12,6 @@ def boundary_collision_system(world: World, entity: Entity) -> None:
     if not collider or not transform or not velocity or not health:
         return
     
-    # Find bounds entity
     bounds_entity = None
     for e in world:
         if e.get_component(Bounds):
@@ -40,7 +38,7 @@ def boundary_collision_system(world: World, entity: Entity) -> None:
     transform.set_world_position(x, y)
 
 
-def collision_system(world: World, entity: Entity) -> None:
+def collision_system(world: World, entity: Entity, dt: float) -> None:
     collider1 = entity.get_component(CircleCollider)
     transform1 = entity.get_component(Transform)
     
@@ -60,19 +58,16 @@ def collision_system(world: World, entity: Entity) -> None:
         collider2 = other.get_component(CircleCollider)
         transform2 = other.get_component(Transform)
         
-        # Decide collision rules based on components
         def should_collide(a: Entity, b: Entity) -> bool:
             parent_a = a.get_component(Parent)
             parent_b = b.get_component(Parent)
             
-            # if a is child/weapon (has parent), it collides with health-bearing entities except its owner
             if parent_a:
                 health_b = b.get_component(Health)
                 return health_b is not None and b is not world[parent_a.owner.index]
             if parent_b:
                 health_a = a.get_component(Health)
                 return health_a is not None and a is not world[parent_b.owner.index]
-            # otherwise, collide spheres with spheres
             return a.get_component(Health) is not None and b.get_component(Health) is not None
 
         if not should_collide(entity, other):
@@ -86,7 +81,6 @@ def collision_system(world: World, entity: Entity) -> None:
         min_dist = collider1.radius + collider2.radius
         
         if dist < min_dist and dist > 0:
-            # skip collisions between an entity and its own parent/child (prevent self-damage)
             parent_e = entity.get_component(Parent)
             parent_o = other.get_component(Parent)
             owner_of_entity = parent_e.owner.index if parent_e else None
