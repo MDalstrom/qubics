@@ -5,6 +5,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from pygame import Rect
+    from domain import EntityRef
 
 
 @dataclass
@@ -192,5 +193,3 @@ class Transform:
     def get_matrix(self) -> np.ndarray:
         return self.get_world_matrix()
 
-
-from infrastructure.world import EntityRef

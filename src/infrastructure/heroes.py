@@ -1,11 +1,11 @@
 from components import Transform, Rigidbody, Acceleration, Health, Damage, CircleCollider, Renderable, Parent
-from infrastructure.world import Entity
+from domain import Entity
 
 
 def create_armer(world, hp: float, x: float, y: float, radius: float, color: tuple[int, int, int], vx: float, vy: float):
     entity = Entity()
     entity.add_component(Transform(x, y))
-    entity.add_component(Rigidbody(vx, vy, angular_damping=0.5, friction=0.1, restitution=0.9))
+    entity.add_component(Rigidbody(vx, vy, angular_damping=0.5, friction=0.1, restitution=1.0))
     entity.add_component(Health(hp))
     entity.add_component(Damage(lambda: 5))
     entity.add_component(CircleCollider(radius, 'sphere'))
@@ -18,7 +18,7 @@ def create_armer(world, hp: float, x: float, y: float, radius: float, color: tup
 def create_swordsman(world, hp: float, x: float, y: float, radius: float, color: tuple[int, int, int], vx: float, vy: float):
     entity = Entity()
     entity.add_component(Transform(x, y))
-    entity.add_component(Rigidbody(vx, vy, angular_velocity=0, angular_damping=0.5, friction=0.1, restitution=0.8))
+    entity.add_component(Rigidbody(vx, vy, angular_velocity=0, angular_damping=0.5, friction=0.1, restitution=1.0))
     entity.add_component(Health(hp))
     entity.add_component(CircleCollider(radius, 'sphere'))
     entity.add_component(Renderable('circle', color, radius=radius))

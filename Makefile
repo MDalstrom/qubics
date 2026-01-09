@@ -4,8 +4,11 @@
 
 PY := .venv/bin/python3
 
+alt: .venv/.deps-installed
+	$(PY) src/main_alt.py --fps=120
+
 exp: .venv/.deps-installed
-	$(PY) src/main_export.py --output=output.mp4 --duration=10 --fps=60
+	$(PY) src/main.py --output=output.mp4 --duration=10 --fps=60
 
 run: .venv/.deps-installed
-	$(PY) src/main_run.py --fps=120
+	$(PY) src/main.py --fps=120

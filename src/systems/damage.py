@@ -1,5 +1,6 @@
 from components import Health, CircleCollider, Damage, Destroyed
-from infrastructure.world import World, Entity, for_each
+from domain import World, Entity
+from infrastructure.world import for_each
 
 
 @for_each
