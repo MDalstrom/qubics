@@ -32,9 +32,12 @@ class Entity:
 
 @dataclass
 class World:
+    timestep: float
+    alpha: float = 0.0
     entities: list[Entity] = field(default_factory=list)
+
     _generation: int = field(default=0, init=False)
-    
+
     def add(self, entity: Entity) -> EntityRef:
         index = len(self.entities)
         self.entities.append(entity)

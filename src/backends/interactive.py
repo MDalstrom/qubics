@@ -1,43 +1,39 @@
-"""
-Interactive pygame backend - renders to screen in real-time.
-Pure rendering backend, no simulation logic.
-"""
 import pygame
+from loop import step_simulation, render_frame
 
 
-class InteractiveBackend:
-    """Pygame window backend for real-time interactive rendering."""
+def run(game, *, config):
+    update, render = game
+    screen = pygame.display.set_mode((config['width'], config['height']))
+    pygame.display.set_caption("Balls Fight")
+    clock = pygame.time.Clock()
     
-    def __init__(self, width: int, height: int, bg_color: tuple[int, int, int], fps: int, title: str = "Game"):
-        self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption(title)
-        self.bg_color = bg_color
-        self.clock = pygame.time.Clock()
-        self.fps = fps
-        self.running = True
+    current_time = pygame.time.get_ticks() / 1000.0
+    accumulator = 0.0
     
-    def begin_frame(self) -> None:
-        """Clear screen and handle events."""
+    running = True
+    while running:
+        # Measure elapsed time
+        new_time = pygame.time.get_ticks() / 1000.0
+        frame_time = new_time - current_time
+        if frame_time > 0.25:  # Cap at 250ms to prevent spiral of death
+            frame_time = 0.25
+        current_time = new_time
+        accumulator += frame_time
+        
+        # Handle events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                self.running = False
+                running = False
         
-        self.screen.fill(self.bg_color)
-    
-    def get_surface(self):
-        """Get drawing surface."""
-        return self.screen
-    
-    def end_frame(self) -> None:
-        """Display frame and limit FPS."""
+        # Update simulation (independent of rendering)
+        accumulator, alpha = step_simulation(update, accumulator, config['delta_time'])
+        
+        # Render (only difference between backends)
+        render_frame(render, screen, config['bg_color'], alpha)
         pygame.display.flip()
-        self.clock.tick(self.fps)
+        
+        clock.tick(config['fps'])
     
-    def should_quit(self) -> bool:
-        """Check if user wants to quit."""
-        return not self.running
-    
-    def cleanup(self) -> None:
-        """Cleanup resources."""
-        pygame.quit()
+    pygame.quit()
 
