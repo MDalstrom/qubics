@@ -5,7 +5,6 @@ from pygame import Surface, gfxdraw
 from application.transform import Transform
 from dataclasses import dataclass
 
-
 @dataclass
 class CircleRenderable:
     color: tuple[int, int, int]
@@ -17,6 +16,8 @@ def render(world: World, _: Entity, surface: Surface):
     @for_each
     def inner(_: World, __: Entity, renderable: CircleRenderable, transform: Transform):
         x, y = transform.get_interpolated_world_position(world.alpha)
+        x = min(max(x, -32768), 32767)
+        y = min(max(y, -32768), 32767)
         gfxdraw.filled_circle(
             surface, int(x), int(y), int(renderable.radius), renderable.color
         )

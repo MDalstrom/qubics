@@ -1,5 +1,6 @@
 import math
-import numpy as np
+
+from application.math import Vector, Matrix
 
 
 class Transform:
@@ -10,55 +11,62 @@ class Transform:
         angle: float = 0.0,
         parent: "Transform | None" = None,
     ):
-        self.matrix = np.identity(3)
-        self.prev_matrix = np.identity(3)
+        self._local_matrix = Matrix.identity(3)
+        self._prev_local_matrix = Matrix.identity(3)
         self.parent = parent
         self.set_local_transform(x, y, angle)
         self.save_previous()
 
+    def transpose(self, point: Vector) -> Vector:
+        return self.world_matrix @ point
+
     def save_previous(self):
-        self.prev_matrix = self.matrix.copy()
+        self._prev_local_matrix = self._local_matrix.copy()
 
     def set_local_transform(self, x: float, y: float, angle: float):
-        c = math.cos(angle)
-        s = math.sin(angle)
-        self.matrix = np.array([[c, -s, x], [s, c, y], [0, 0, 1]])
+        self._local_matrix = Matrix.transform(x, y, angle)
+
+    @property
+    def local_matrix(self) -> Matrix:
+        return self._local_matrix
+
+    @property
+    def world_matrix(self) -> Matrix:
+        if self.parent is None:
+            return self._local_matrix
+        return self.parent.world_matrix @ self._local_matrix
 
     @property
     def local_x(self) -> float:
-        return self.matrix[0, 2]
+        return self._local_matrix[0, 2]
 
     @local_x.setter
     def local_x(self, value: float):
-        self.matrix[0, 2] = value
+        self._local_matrix[0, 2] = value
 
     @property
     def local_y(self) -> float:
-        return self.matrix[1, 2]
+        return self._local_matrix[1, 2]
 
     @local_y.setter
     def local_y(self, value: float):
-        self.matrix[1, 2] = value
+        self._local_matrix[1, 2] = value
 
     @property
     def local_angle(self) -> float:
-        return math.atan2(self.matrix[1, 0], self.matrix[0, 0])
+        return math.atan2(self._local_matrix[1, 0], self._local_matrix[0, 0])
 
     @local_angle.setter
     def local_angle(self, value: float):
-        x = self.matrix[0, 2]
-        y = self.matrix[1, 2]
+        x = self._local_matrix[0, 2]
+        y = self._local_matrix[1, 2]
         self.set_local_transform(x, y, value)
 
-    def get_world_matrix(self) -> np.ndarray:
-        if self.parent is None:
-            return self.matrix
-        return self.parent.get_world_matrix() @ self.matrix
+    def get_world_matrix(self) -> Matrix:
+        return self.world_matrix
 
     def get_interpolated_world_position(self, alpha: float) -> tuple[float, float]:
-        current_local = self.matrix
-        prev_local = self.prev_matrix
-        interp_local = prev_local * (1.0 - alpha) + current_local * alpha
+        interp_local = self._prev_local_matrix * (1.0 - alpha) + self._local_matrix * alpha
 
         if self.parent is None:
             world_matrix = interp_local
@@ -68,10 +76,8 @@ class Transform:
 
         return world_matrix[0, 2], world_matrix[1, 2]
 
-    def get_interpolated_world_matrix(self, alpha: float) -> np.ndarray:
-        current_local = self.matrix
-        prev_local = self.prev_matrix
-        interp_local = prev_local * (1.0 - alpha) + current_local * alpha
+    def get_interpolated_world_matrix(self, alpha: float) -> Matrix:
+        interp_local = self._prev_local_matrix * (1.0 - alpha) + self._local_matrix * alpha
 
         if self.parent is None:
             return interp_local
@@ -80,31 +86,28 @@ class Transform:
         return parent_matrix @ interp_local
 
     def get_world_position(self) -> tuple[float, float]:
-        world_matrix = self.get_world_matrix()
-        return world_matrix[0, 2], world_matrix[1, 2]
+        wm = self.world_matrix
+        return wm[0, 2], wm[1, 2]
 
     def get_world_angle(self) -> float:
-        world_matrix = self.get_world_matrix()
-        return math.atan2(world_matrix[1, 0], world_matrix[0, 0])
+        wm = self.world_matrix
+        return math.atan2(wm[1, 0], wm[0, 0])
 
     def set_world_position(self, x: float, y: float) -> None:
         if self.parent is None:
-            self.matrix[0, 2] = x
-            self.matrix[1, 2] = y
+            self._local_matrix[0, 2] = x
+            self._local_matrix[1, 2] = y
             return
 
-        parent_matrix = self.parent.get_world_matrix()
-        parent_inv = np.linalg.inv(parent_matrix)
+        parent_inv = self.parent.world_matrix.inverse()
+        local_pos = parent_inv @ Vector(x, y)
 
-        target_world_pos = np.array([x, y, 1.0])
-        local_pos_homogeneous = parent_inv @ target_world_pos
-
-        self.matrix[0, 2] = local_pos_homogeneous[0]
-        self.matrix[1, 2] = local_pos_homogeneous[1]
+        self._local_matrix[0, 2] = local_pos.x
+        self._local_matrix[1, 2] = local_pos.y
 
     def set_world_angle(self, angle: float) -> None:
-        current_x = self.matrix[0, 2]
-        current_y = self.matrix[1, 2]
+        current_x = self._local_matrix[0, 2]
+        current_y = self._local_matrix[1, 2]
 
         if self.parent is None:
             self.set_local_transform(current_x, current_y, angle)
@@ -114,5 +117,5 @@ class Transform:
         local_angle = angle - parent_angle
         self.set_local_transform(current_x, current_y, local_angle)
 
-    def get_matrix(self) -> np.ndarray:
-        return self.get_world_matrix()
+    def get_matrix(self) -> Matrix:
+        return self.world_matrix

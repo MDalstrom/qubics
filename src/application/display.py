@@ -31,18 +31,24 @@ def duration_system(world: World, _: Entity, duration: Duration):
     raise ValueError("Duration reached")
 
 
-def create_interactive_system():
-    def interactive_system(world: World):
+def create_interactive_system(resolution: tuple[int, int]):
+    output_surface = pygame.display.set_mode(resolution)
+    @for_each
+    def interactive_system(_: World, __: Entity, surface: Surface):
+        surface = pygame.transform.smoothscale(surface, resolution)
+        output_surface.blit(surface, (0, 0))
         pygame.display.flip()
 
     return interactive_system
 
 
-def create_export_system(writer):
+def create_export_system(writer, resolution: tuple[int, int]):
     @for_each
     def export_system(_: World, __: Entity, surface: Surface):
-        frame_array = pygame.surfarray.array3d(surface)
+        scaled_surface = pygame.transform.smoothscale(surface, resolution)
+        frame_array = pygame.surfarray.array3d(scaled_surface)
         frame_array = np.transpose(frame_array, (1, 0, 2))
         writer.append_data(frame_array)
 
     return export_system
+

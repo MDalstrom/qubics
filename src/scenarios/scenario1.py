@@ -1,29 +1,26 @@
-from application.display import Duration
 from ecs.system import SystemsGroup
-from scenarios.types import Scenario
-from infrastructure.config import get_config
-from ecs.entity import Entity
 from ecs.world import World
-from .shared import create_bounds, create_background, create_sphere
+from scenarios import battle
+from scenarios.types import Scenario
 
-config = get_config()
+from .shared import create_sphere, create_box
 
 
 def bake(world: World):
-    bounds = create_bounds()
-    world.add(bounds)
-
-    background = create_background()
-    world.add(background)
-
     sphere = create_sphere(
-        x=200, y=100, radius=20, color=(100, 150, 255), vx=100, vy=100
+        x=200, y=800, radius=20, color=(100, 150, 255), vx=100, vy=100
     )
     world.add(sphere)
 
-    duration = Entity()
-    duration.add_component(Duration(config["duration"]))
-    world.add(duration)
+    sphere = create_sphere(
+        x=100, y=800, radius=20, color=(100, 150, 255), vx=100, vy=100
+    )
+    world.add(sphere)
 
+    box = create_box(
+        x=450, y=800, width=30, height=30, color=(100, 150, 255), vx=98, vy=100, angle=43
+    )
+    world.add(box)
 
 scenario = Scenario(bake, SystemsGroup([], [], []), SystemsGroup([], [], []))
+scenario = battle.scenario.merge(scenario)
