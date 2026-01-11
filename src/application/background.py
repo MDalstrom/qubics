@@ -2,9 +2,13 @@ from dataclasses import dataclass
 
 from pygame import Surface, gfxdraw
 import pygame
-from domain import World, Entity
-from components import Bounds, Transform, Rigidbody, Acceleration, Renderable
-from infrastructure.world import for_each
+from ecs.world import World
+from ecs.entity import Entity
+from ecs.system import for_each
+from application.collision import Bounds
+from application.transform import Transform
+from application.physics import Rigidbody, Acceleration
+from application.rendering import Renderable
 
 
 @dataclass

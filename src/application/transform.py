@@ -1,78 +1,9 @@
 from dataclasses import dataclass
-from typing import Callable, TYPE_CHECKING
 import math
 import numpy as np
 
-if TYPE_CHECKING:
-    from pygame import Rect
-    from domain import EntityRef
-
-
-@dataclass
-class Rigidbody:
-    vx: float
-    vy: float
-    angular_velocity: float = 0.0
-    angular_damping: float = 0.0
-    friction: float = 0.0
-    restitution: float = 1.0
-
-
-@dataclass
-class Acceleration:
-    ax: float = 0.0
-    ay: float = 0.0
-
-
-@dataclass
-class Health:
-    hp: float
-
-
-@dataclass
-class Damage:
-    value: Callable[[], float]
-
-
-@dataclass
-class CircleCollider:
-    radius: float
-    kind: str
-    collisions: list[int] = None
-    
-    def __postinit__(self):
-        self.collisions = []
-
-@dataclass
-class Renderable:
-    shape: str
-    color: tuple[int, int, int]
-    radius: float = 0.0
-
-
-@dataclass
-class Parent:
-    owner: 'EntityRef'
-    offset_distance: float = 0.0
-    offset_angle: float = 0.0
-
-
-@dataclass
-class Destroyed:
-    """Marker component for destroyed entities"""
-    value: bool = True
-
-
-@dataclass
-class Bounds:
-    """Boundary component"""
-    rect: 'Rect'
-    color: tuple[int, int, int]
-
 
 class Transform:
-    """Transform component with hierarchical world/local coordinate support using matrix"""
-    
     def __init__(self, x: float = 0.0, y: float = 0.0, angle: float = 0.0, parent: 'Transform | None' = None):
         self.matrix = np.identity(3)
         self.prev_matrix = np.identity(3)
@@ -124,11 +55,6 @@ class Transform:
         return self.parent.get_world_matrix() @ self.matrix
 
     def get_interpolated_world_position(self, alpha: float) -> tuple[float, float]:
-        # Linearly interpolate matrices
-        # Note: This is an approximation. For perfect rotation interpolation, 
-        # we would need to decompose, slerp angle, lerp position, and recompose.
-        # But for small dt, matrix lerp is acceptable and faster.
-        
         current_local = self.matrix
         prev_local = self.prev_matrix
         interp_local = prev_local * (1.0 - alpha) + current_local * alpha
@@ -136,9 +62,6 @@ class Transform:
         if self.parent is None:
             world_matrix = interp_local
         else:
-            # We assume parent also has this method or we manually interpolate parent
-            # Ideally we'd call parent.get_interpolated_world_matrix(alpha)
-            # For now, let's implement a helper for matrix
             parent_matrix = self.parent.get_interpolated_world_matrix(alpha)
             world_matrix = parent_matrix @ interp_local
             
@@ -192,4 +115,3 @@ class Transform:
     
     def get_matrix(self) -> np.ndarray:
         return self.get_world_matrix()
-

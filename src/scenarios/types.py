@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Protocol
-from domain import System, World
+from ecs.system import System
+from ecs.world import World
 
 
 class Baker(Protocol):

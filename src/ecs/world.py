@@ -1,38 +1,15 @@
-from typing import Protocol
 from dataclasses import dataclass, field
-from typing import TypeVar, cast
-
-from pygame import Surface
+from typing import TypeVar
+from ecs.entity import Entity, EntityRef
 
 
 T = TypeVar('T')
 
 
 @dataclass
-class EntityRef:
-    index: int
-    generation: int = 0
-
-class Entity:
-    def __init__(self):
-        self._components: dict[object, object] = {}
-    
-    def add_component(self, component: object) -> None:
-        component_type = type(component)
-        self._components[component_type] = component
-    
-    def get_component(self, component_type: type[T]) -> T | None:
-        component = self._components.get(component_type)
-        if component is not None:
-            return cast(T, component)
-        return None
-    
-    def has_component(self, component_type: type) -> bool:
-        return self.get_component(component_type) is not None
-
-@dataclass
 class World:
     timestep: float
+    dt: float = 0.0
     alpha: float = 0.0
     entities: list[Entity] = field(default_factory=list)
 
@@ -80,19 +57,3 @@ class World:
     
     def __getitem__(self, index: int) -> Entity:
         return self.entities[index]
-
-
-class System(Protocol):
-    def __call__(self, world: World) -> None:
-        ...
-
-
-class Renderer(Protocol):
-    def __call__(self, context: 'RenderContext', entity: Entity) -> None:
-        ...
-
-
-class RenderContext:
-    def __init__(self, surface: Surface, alpha: float = 1.0):
-        self.surface = surface
-        self.alpha = alpha

@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-from pygame.surface import Surface
-from domain import Entity, World
+from ecs.entity import Entity
+from ecs.world import World
+from ecs.system import for_each
 import pygame
-
-from infrastructure.world import for_each
 
 
 @dataclass

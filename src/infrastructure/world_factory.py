@@ -1,5 +1,5 @@
-from domain import World
-from alt.dependencies.config import get_config
+from ecs.world import World
+from infrastructure.config import get_config
 
 
 def get_world(

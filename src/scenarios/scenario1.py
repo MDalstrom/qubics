@@ -1,9 +1,10 @@
-from alt.application.background import acceleration_system, bounds_render_system, fill_background, movement_system, renderable_system
-from alt.application.rendering import duration_system, Duration
-from alt.scenarios.types import Scenario
-from alt.dependencies.config import get_config
-from domain import Entity, World
-from systems.collision import boundary_collision_system
+from application.background import acceleration_system, bounds_render_system, fill_background, movement_system, renderable_system
+from application.display import duration_system, Duration
+from scenarios.types import Scenario
+from infrastructure.config import get_config
+from ecs.entity import Entity
+from ecs.world import World
+from application.boundary_collision import boundary_collision_system
 from .shared import create_bounds, create_background, create_sphere
 
 config = get_config()

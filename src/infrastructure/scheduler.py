@@ -1,9 +1,9 @@
-from domain import Entity
-from alt.application.rendering import create_export_system, create_interactive_system, handle_events, duration_system
-from alt.core.scheduler import ClockFn, tick
-from alt.dependencies.config import get_config
-from alt.dependencies.scenario import get_scenario
-from alt.dependencies.world import get_world
+from ecs.entity import Entity
+from application.display import create_export_system, create_interactive_system, handle_events, duration_system
+from ecs.scheduler import ClockFn, tick
+from infrastructure.config import get_config
+from infrastructure.scenario import get_scenario
+from infrastructure.world_factory import get_world
 from pygame import Surface
 
 
@@ -73,6 +73,8 @@ def get_loop(
     surface_entity = Entity()
     surface_entity.add_component(surface)
     world.add(surface_entity)
+    
+    print(world.entities)
 
     return tick(
         simulation_pass,

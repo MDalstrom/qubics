@@ -1,7 +1,10 @@
 from pygame import Rect
-from alt.application.background import Background
-from domain import Entity
-from components import Bounds, Transform, Rigidbody, CircleCollider, Renderable, Acceleration
+from application.background import Background
+from ecs.entity import Entity
+from application.collision import Bounds, CircleCollider
+from application.transform import Transform
+from application.physics import Rigidbody, Acceleration
+from application.rendering import Renderable
 
 
 def create_background():

@@ -4,17 +4,8 @@
 
 PY := .venv/bin/python3
 
-.PHONY: alt-exp
-.PHONY: alt
-
-alt-exp: .venv/.deps-installed output.mp4
+exp: .venv/.deps-installed output.mp4
 	rm output.mp4
-	$(PY) src/main_alt.py --fps=120 --output=output.mp4
-
-alt: .venv/.deps-installed
-	$(PY) src/main_alt.py --fps=120
-
-exp: .venv/.deps-installed
 	$(PY) src/main.py --output=output.mp4 --duration=10 --fps=60
 
 run: .venv/.deps-installed

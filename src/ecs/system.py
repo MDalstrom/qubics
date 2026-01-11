@@ -1,6 +1,12 @@
+from typing import Protocol, Callable, get_type_hints
 import inspect
-from typing import Callable, get_type_hints
-from domain import World, System
+from ecs.world import World
+from ecs.entity import Entity
+
+
+class System(Protocol):
+    def __call__(self, world: World) -> None:
+        ...
 
 
 def for_each(entity_fn: Callable) -> System:
