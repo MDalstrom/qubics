@@ -57,3 +57,6 @@ class World:
     
     def __getitem__(self, index: int) -> Entity:
         return self.entities[index]
+
+    def __str__(self) -> str:
+        return f'{", \n".join([str(e) for e in self.entities])}'

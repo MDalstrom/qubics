@@ -73,9 +73,9 @@ def get_loop(
     surface_entity = Entity()
     surface_entity.add_component(surface)
     world.add(surface_entity)
-    
-    print(world.entities)
 
+    print(world)
+    
     return tick(
         simulation_pass,
         rendering_pass,
