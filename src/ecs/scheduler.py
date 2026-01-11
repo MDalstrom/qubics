@@ -2,16 +2,15 @@ from typing import Callable, Protocol
 
 
 class ClockFn(Protocol):
-    def __call__(self) -> float:
-        ...
- 
+    def __call__(self) -> float: ...
+
 
 def tick(
     simulation_pass: Callable,
     rendering_pass: Callable[[float], None],
     fixed_step: float,
     clock: ClockFn,
-    accumulator: float
+    accumulator: float,
 ) -> float:
     delta = clock()
 
@@ -22,4 +21,3 @@ def tick(
 
     rendering_pass(accumulator / fixed_step)
     return accumulator
-

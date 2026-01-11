@@ -23,6 +23,6 @@ class Acceleration:
 
 @dataclass
 class Parent:
-    owner: 'EntityRef'
+    owner: "EntityRef"
     offset_distance: float = 0.0
     offset_angle: float = 0.0

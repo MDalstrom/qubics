@@ -5,9 +5,10 @@ dependencies = [
   "pygame>=2.5.0",
   "imageio[ffmpeg]"
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
+exclude = ["build", "dist", ".venv", "__pycache__"]
 

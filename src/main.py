@@ -1,10 +1,9 @@
-import pygame
-pygame.init()
-
-
 from infrastructure.config import get_config
 from infrastructure.scheduler import get_loop
+import pygame
 
+
+pygame.init()
 print(get_config())
 loop = get_loop()
 

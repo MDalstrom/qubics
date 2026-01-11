@@ -11,13 +11,13 @@ class BoundsRenderable:
     size: tuple[int, int]
     color: tuple[int, int, int]
 
+
 @for_each
-def bounds_render_system(world: World, _: Entity, surface: Surface):
+def render(world: World, _: Entity, surface: Surface):
     @for_each
     def inner(_: World, __: Entity, bounds: BoundsRenderable, transform: Transform):
         x, y = transform.get_interpolated_world_position(world.alpha)
         rect = Rect(x, y, bounds.size[0], bounds.size[1])
         gfxdraw.rectangle(surface, rect, bounds.color)
+
     inner(world)
-
-

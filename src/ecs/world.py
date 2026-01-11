@@ -3,7 +3,7 @@ from typing import TypeVar
 from ecs.entity import Entity, EntityRef
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
@@ -19,24 +19,26 @@ class World:
         index = len(self.entities)
         self.entities.append(entity)
         return EntityRef(index, self._generation)
-    
+
     def get_entity(self, ref: EntityRef) -> Entity | None:
         if not self.validate(ref):
             return None
         return self.entities[ref.index]
-    
+
     def get_component(self, ref: EntityRef, component_type: type[T]) -> T | None:
         entity = self.get_entity(ref)
         if not entity:
             return None
         return entity.get_component(component_type)
-    
+
     def validate(self, ref: EntityRef) -> bool:
-        return ref.generation == self._generation and 0 <= ref.index < len(self.entities)
-    
+        return ref.generation == self._generation and 0 <= ref.index < len(
+            self.entities
+        )
+
     def rebuild_indices(self) -> None:
         self._generation += 1
-    
+
     def query_one(self, component_type: type[T]) -> T | None:
         result = None
         for entity in self.entities:
@@ -51,10 +53,10 @@ class World:
             if all(entity.has_component(ct) for ct in component_types):
                 result.append(entity)
         return result
-    
+
     def __iter__(self):
         return iter(self.entities)
-    
+
     def __getitem__(self, index: int) -> Entity:
         return self.entities[index]
 

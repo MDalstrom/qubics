@@ -13,6 +13,7 @@ def create_background():
     entity.add_component(Background((255, 255, 255)))
     return entity
 
+
 def create_bounds():
     entity = Entity()
     entity.add_component(Transform(50, 50))
@@ -20,7 +21,15 @@ def create_bounds():
     entity.add_component(BoundsCollider(Rect(50, 50, 300, 600)))
     return entity
 
-def create_sphere(x: float, y: float, radius: float, color: tuple[int, int, int], vx: float = 1000.0, vy: float = 1000.0):
+
+def create_sphere(
+    x: float,
+    y: float,
+    radius: float,
+    color: tuple[int, int, int],
+    vx: float = 1000.0,
+    vy: float = 1000.0,
+):
     entity = Entity()
     entity.add_component(Transform(x, y))
     entity.add_component(Rigidbody(vx, vy, restitution=1.0))

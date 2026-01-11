@@ -1,4 +1,4 @@
-from ecs.scheduler import ClockFn, tick
+from ecs.scheduler import tick
 from infrastructure.clock import get_clock
 from infrastructure.config import get_config
 from infrastructure.scenario import get_scenario

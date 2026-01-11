@@ -1,12 +1,13 @@
 _config = {
-    'width': 384,
-    'height': 768,
-    'bg_color': (255, 255, 255),
-    'fps': 60,
-    'duration': 10,
-    'sim_dt': 1.0 / 120.0,
-    'scenario': 'scenario1'
+    "width": 384,
+    "height": 768,
+    "bg_color": (255, 255, 255),
+    "fps": 60,
+    "duration": 10,
+    "sim_dt": 1.0 / 120.0,
+    "scenario": "scenario1",
 }
+
 
 def get_config():
     def merge(base: dict, override: dict, path=[]):
@@ -21,6 +22,7 @@ def get_config():
         return base
 
     import argparse
+
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("-o", "--output", type=str)
     parser.add_argument("-d", "--duration", type=int)
