@@ -1,14 +1,11 @@
 from dataclasses import dataclass
 
-from pygame import Surface, gfxdraw
-import pygame
+from pygame import Surface
 from ecs.world import World
 from ecs.entity import Entity
 from ecs.system import for_each
-from application.collision import Bounds
 from application.transform import Transform
 from application.physics import Rigidbody, Acceleration
-from application.rendering import Renderable
 
 
 @dataclass
@@ -35,32 +32,5 @@ def fill_background(world: World, _: Entity, surface: Surface):
     @for_each
     def inner(_: World, __: Entity, background: Background):
         surface.fill(background.color)
-    inner(world)
-
-@for_each
-def bounds_render_system(world: World, _: Entity, surface: Surface):
-    @for_each
-    def inner(_: World, entity: Entity, bounds: Bounds):
-        transform = entity.get_component(Transform)
-        if transform:
-            x, y = transform.get_interpolated_world_position(world.alpha)
-            rect = bounds.rect.copy()
-            rect.x = int(x)
-            rect.y = int(y)
-            gfxdraw.rectangle(surface, rect, bounds.color)
-        else:
-            gfxdraw.rectangle(surface, bounds.rect, bounds.color)
-    inner(world)
-
-
-@for_each
-def renderable_system(world: World, _: Entity, surface: Surface):
-    @for_each
-    def inner(_: World, __: Entity, renderable: Renderable, transform: Transform):
-        x, y = transform.get_interpolated_world_position(world.alpha)
-        if renderable.shape == 'circle':
-            gfxdraw.filled_circle(surface, int(x), int(y), int(renderable.radius), renderable.color)
-            gfxdraw.aacircle(surface, int(x), int(y), int(renderable.radius), renderable.color)
-    
     inner(world)
 

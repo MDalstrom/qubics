@@ -1,5 +1,4 @@
-import numpy as np
-from application.collision import CircleCollider, Bounds
+from application.collision import CircleCollider, BoundsCollider
 from application.transform import Transform
 from application.physics import Rigidbody
 from ecs.world import World
@@ -8,7 +7,7 @@ from ecs.system import for_each
 
 
 def boundary_collision_system(world: World):
-    bounds = world.query_one(Bounds)
+    bounds = world.query_one(BoundsCollider)
     if not bounds:
         return
 

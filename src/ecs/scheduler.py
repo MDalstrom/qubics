@@ -11,18 +11,15 @@ def tick(
     rendering_pass: Callable[[float], None],
     fixed_step: float,
     clock: ClockFn,
-):
-    elapsed = [0.0]
-    
-    def _inner():
-        delta = clock()
+    accumulator: float
+) -> float:
+    delta = clock()
 
-        elapsed[0] += delta
-        while elapsed[0] >= fixed_step:
-            simulation_pass()
-            elapsed[0] -= fixed_step
+    accumulator += delta
+    while accumulator >= fixed_step:
+        simulation_pass()
+        accumulator -= fixed_step
 
-        rendering_pass(elapsed[0] / fixed_step)
-
-    return _inner
+    rendering_pass(accumulator / fixed_step)
+    return accumulator
 

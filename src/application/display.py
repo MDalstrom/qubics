@@ -3,6 +3,7 @@ from ecs.entity import Entity
 from ecs.world import World
 from ecs.system import for_each
 import pygame
+from pygame import Surface
 
 
 @dataclass
@@ -15,7 +16,7 @@ class Duration:
 class End:
     ...
 
-def handle_events(_: World):
+def handle_events(world: World):
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             raise ValueError('Interrupted')
@@ -31,7 +32,7 @@ def duration_system(world: World, _: Entity, duration: Duration):
     raise ValueError('Duration reached')
 
 def create_interactive_system():
-    def interactive_system(_: World):
+    def interactive_system(world: World):
         pygame.display.flip()
     return interactive_system
 

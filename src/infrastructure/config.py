@@ -30,5 +30,5 @@ def get_config():
     parsed_config = vars(parser.parse_args())
 
     merged = merge(_config, parsed_config)
-    
+
     return merged

@@ -4,8 +4,11 @@
 
 PY := .venv/bin/python3
 
-exp: .venv/.deps-installed output.mp4
-	rm output.mp4
+.PHONY: exp
+.PHONY: run
+
+exp: .venv/.deps-installed
+	rm -f output.mp4;
 	$(PY) src/main.py --output=output.mp4 --duration=10 --fps=60
 
 run: .venv/.deps-installed

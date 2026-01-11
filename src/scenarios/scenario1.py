@@ -1,10 +1,9 @@
-from application.background import acceleration_system, bounds_render_system, fill_background, movement_system, renderable_system
-from application.display import duration_system, Duration
+from application.display import Duration
+from ecs.system import SystemsGroup
 from scenarios.types import Scenario
 from infrastructure.config import get_config
 from ecs.entity import Entity
 from ecs.world import World
-from application.boundary_collision import boundary_collision_system
 from .shared import create_bounds, create_background, create_sphere
 
 config = get_config()
@@ -26,6 +25,6 @@ def bake(world: World):
 
 scenario = Scenario(
     bake, 
-    [acceleration_system, movement_system, boundary_collision_system, duration_system],
-    [fill_background, bounds_render_system, renderable_system]
+    SystemsGroup([],[],[]),
+    SystemsGroup([],[],[])
 )
