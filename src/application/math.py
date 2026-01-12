@@ -1,5 +1,5 @@
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Iterable, Union, overload
 
 
@@ -11,6 +11,10 @@ class Vector:
     @staticmethod
     def identity() -> 'Vector':
         return Vector(1, 1)
+    
+    @staticmethod
+    def zero() -> 'Vector':
+        return Vector(0.0, 0.0)
 
     def __add__(self, other: 'Vector') -> 'Vector':
         return Vector(self.x + other.x, self.y + other.y)
@@ -74,7 +78,7 @@ class Vector:
 
     def add(self, other: 'Vector') -> 'Vector':
         return Vector(self.x + other.x, self.y + other.y)
-
+    
     def subtract(self, other: 'Vector') -> 'Vector':
         return Vector(self.x - other.x, self.y - other.y)
 

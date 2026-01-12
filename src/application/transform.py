@@ -30,7 +30,7 @@ class Transform:
         sx = math.sqrt(matrix[0, 0] ** 2 + matrix[1, 0] ** 2)
         sy = math.sqrt(matrix[0, 1] ** 2 + matrix[1, 1] ** 2)
         return Vector(sx, sy)
-
+    
     def transpose(self, point: Vector) -> Vector:
         return self.world_matrix @ point
 
@@ -158,7 +158,6 @@ class Transform:
 
     def get_matrix(self) -> Matrix:
         return self.world_matrix
-
 
 @for_each
 def save_transform_state(_: World, __: Entity, transform: Transform) -> None:

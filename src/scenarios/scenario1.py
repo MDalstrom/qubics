@@ -7,22 +7,22 @@ from .shared import create_sphere, create_box
 
 
 def bake(world: World):
-    sphere = create_sphere(
-        x=200, y=800, radius=20, color=(100, 150, 255), vx=100, vy=100
-    )
-    world.add(sphere)
-
-    sphere = create_sphere(
-        x=100, y=800, radius=20, color=(100, 150, 255), vx=100, vy=100
-    )
-    world.add(sphere)
-
+    # sphere = create_sphere(
+    #     x=200, y=800, radius=20, color=(100, 150, 255), vx=100, vy=100
+    # )
+    # world.add(sphere)
+    #
+    # sphere = create_sphere(
+    #     x=100, y=800, radius=20, color=(100, 150, 255), vx=100, vy=100
+    # )
+    # world.add(sphere)
+    #
     box = create_box(
-        x=500, y=800, width=30, height=30, color=(100, 150, 255), vx=-98, vy=100, angle=43
+        x=600, y=800, width=30, height=30, color=(100, 150, 255), vx=-40, vy=0, angle=43
     )
     world.add(box)
     box = create_box(
-        x=450, y=800, width=30, height=30, color=(100, 150, 255), vx=-98, vy=100, angle=43
+        x=300, y=800, width=30, height=30, color=(100, 150, 255), vx=40, vy=0, angle=43
     )
     world.add(box)
 

@@ -12,7 +12,8 @@ class EntityRef:
 
 
 class Entity:
-    def __init__(self):
+    def __init__(self, name: str | None = None):
+        self.name = name
         self._components: dict[object, object] = {}
 
     def add_component(self, component: object) -> None:
@@ -29,4 +30,4 @@ class Entity:
         return self.get_component(component_type) is not None
 
     def __str__(self) -> str:
-        return f'[{", ".join([str(c) for c in self._components])}]'
+        return f'Entity({self.name or id(self)})'

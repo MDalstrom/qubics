@@ -11,7 +11,7 @@ from application.display import (
     duration_system,
     handle_events,
 )
-from application.physics import acceleration_system, velocity_system, damping_system
+from application.physics.rigidbody import acceleration_system, apply_collisions_forces, velocity_system, damping_system
 from application.transform import save_transform_state
 from application.rendering import circle, line, box
 from application.rendering.viewport import Viewport
@@ -56,7 +56,7 @@ def _get_base_scenario(
         bake,
         SystemsGroup(
             [duration_system, save_transform_state],
-            [*collisions, acceleration_system, velocity_system, damping_system],
+            [*collisions, apply_collisions_forces, acceleration_system, velocity_system, damping_system],
             [deal_damage],
         ),
         SystemsGroup(

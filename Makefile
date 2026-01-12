@@ -6,6 +6,7 @@ PY := .venv/bin/python3
 
 .PHONY: exp
 .PHONY: run
+.PHONY: test
 
 exp: .venv/.deps-installed
 	rm -f output.mp4;
@@ -13,3 +14,6 @@ exp: .venv/.deps-installed
 
 run: .venv/.deps-installed
 	$(PY) src/main.py --fps=120 --width=480 --height=856
+
+test: .venv/.deps-installed
+	$(PY) -m unittest discover -s tests -p "test_*.py"

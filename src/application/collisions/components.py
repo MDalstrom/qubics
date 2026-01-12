@@ -40,7 +40,7 @@ class CollisionInfo:
     other: Entity
     normal: Vector
     penetration: float
-    contact_point: Vector | None = None
+    contact_point: Vector
 
 
 @dataclass
