@@ -1,4 +1,5 @@
 from application.background import Background
+from application.stats.components import Damage, Health
 from ecs.entity import Entity
 from application.collisions.components import EdgeCollider, CircleCollider, BoxCollider, Collider
 from application.transform import Transform
@@ -46,6 +47,7 @@ def create_sphere(
     entity.add_component(Collider())
     entity.add_component(CircleRenderable(color, radius=radius))
     entity.add_component(Acceleration(0.0, 980.0))
+    entity.add_component(Damage(10))
     return entity
 
 
@@ -66,4 +68,5 @@ def create_box(
     entity.add_component(Collider())
     entity.add_component(BoxRenderable(width, height, color))
     entity.add_component(Acceleration(0.0, 980.0))
+    entity.add_component(Health(100))
     return entity

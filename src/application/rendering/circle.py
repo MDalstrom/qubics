@@ -1,3 +1,4 @@
+from application.rendering.viewport import Viewport
 from ecs.system import for_each
 from ecs.world import World
 from ecs.entity import Entity
@@ -12,17 +13,17 @@ class CircleRenderable:
 
 
 @for_each
-def render(world: World, _: Entity, surface: Surface):
+def render(world: World, _: Entity, viewport: Viewport):
     @for_each
     def inner(_: World, __: Entity, renderable: CircleRenderable, transform: Transform):
         x, y = transform.get_interpolated_world_position(world.alpha)
         x = min(max(x, -32768), 32767)
         y = min(max(y, -32768), 32767)
         gfxdraw.filled_circle(
-            surface, int(x), int(y), int(renderable.radius), renderable.color
+            viewport.surface, int(x), int(y), int(renderable.radius), renderable.color
         )
         gfxdraw.aacircle(
-            surface, int(x), int(y), int(renderable.radius), renderable.color
+            viewport.surface, int(x), int(y), int(renderable.radius), renderable.color
         )
 
     inner(world)

@@ -1,4 +1,5 @@
 from application.math import Vector
+from application.rendering.viewport import Viewport
 from ecs.system import for_each
 from ecs.world import World
 from ecs.entity import Entity
@@ -15,7 +16,7 @@ class LineRenderer:
 
 
 @for_each
-def render(world: World, _: Entity, surface: Surface):
+def render(world: World, _: Entity, viewport: Viewport):
     @for_each
     def inner(_: World, __: Entity, line_renderer: LineRenderer, transform: Transform):
         matrix = transform.get_world_matrix()
@@ -23,7 +24,7 @@ def render(world: World, _: Entity, surface: Surface):
         end = matrix @ Vector(line_renderer.half_length, 0)
 
         draw.line(
-            surface,
+            viewport.surface,
             line_renderer.color,
             (int(start.x), int(start.y)),
             (int(end.x), int(end.y)),

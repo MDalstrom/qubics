@@ -11,8 +11,10 @@ from application.display import (
     duration_system,
     handle_events,
 )
-from application.physics import acceleration_system, movement_system
+from application.physics import acceleration_system, velocity_system, damping_system
 from application.rendering import circle, line, box
+from application.rendering.viewport import Viewport
+from application.stats.systems import create_render_text, deal_damage
 from ecs.entity import Entity
 from ecs.system import SystemsGroup
 from ecs.world import World
@@ -33,9 +35,11 @@ def _get_base_scenario(
     config=get_config(), writer_fn=get_writer
 ) -> Scenario:
     def bake(world: World):
-        surface_entity = Entity()
-        surface_entity.add_component(Surface((900, 1600)))
-        world.add(surface_entity)
+        viewport_entity = Entity()
+        resolution = (config['virtual_width'], config['virtual_height']) 
+        surface = Surface(resolution)
+        viewport_entity.add_component(Viewport(surface, resolution))
+        world.add(viewport_entity)
 
         collision_matrix_entity = Entity()
         collision_matrix_entity.add_component(CollisionMatrix(_collision_layers))
@@ -51,12 +55,12 @@ def _get_base_scenario(
         bake,
         SystemsGroup(
             [duration_system],
-            [acceleration_system, movement_system, systems.clear_collisions, systems.collision_detection_system, systems.collision_response_system],
-            [],
+            [acceleration_system, velocity_system, damping_system, systems.clear_collisions, systems.collision_detection_system, systems.collision_response_system],
+            [deal_damage],
         ),
         SystemsGroup(
             [fill_background, handle_events],
-            [circle.render, line.render, box.render],
+            [circle.render, line.render, box.render, create_render_text()],
             [
                 (
                     create_export_system(writer_fn(), (config['width'], config['height']))

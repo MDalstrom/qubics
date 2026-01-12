@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import numpy as np
 import pygame
 from pygame import Surface
+from application.rendering.viewport import Viewport
 from ecs.entity import Entity
 from ecs.system import for_each
 from ecs.world import World
@@ -34,8 +35,8 @@ def duration_system(world: World, _: Entity, duration: Duration):
 def create_interactive_system(resolution: tuple[int, int]):
     output_surface = pygame.display.set_mode(resolution)
     @for_each
-    def interactive_system(_: World, __: Entity, surface: Surface):
-        surface = pygame.transform.smoothscale(surface, resolution)
+    def interactive_system(_: World, __: Entity, viewport: Viewport):
+        surface = pygame.transform.smoothscale(viewport.surface, resolution)
         output_surface.blit(surface, (0, 0))
         pygame.display.flip()
 
@@ -44,8 +45,8 @@ def create_interactive_system(resolution: tuple[int, int]):
 
 def create_export_system(writer, resolution: tuple[int, int]):
     @for_each
-    def export_system(_: World, __: Entity, surface: Surface):
-        scaled_surface = pygame.transform.smoothscale(surface, resolution)
+    def export_system(_: World, __: Entity, viewport: Viewport):
+        scaled_surface = pygame.transform.smoothscale(viewport.surface, resolution)
         frame_array = pygame.surfarray.array3d(scaled_surface)
         frame_array = np.transpose(frame_array, (1, 0, 2))
         writer.append_data(frame_array)

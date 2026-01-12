@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from application.math import Vector
+from ecs.entity import Entity, EntityRef
 
 
 class CollisionMatrix:
@@ -37,8 +38,10 @@ class CircleCollider:
 
 @dataclass
 class CollisionInfo:
+    other: Entity
     normal: Vector
     penetration: float
+    contact_point: Vector | None = None
 
 
 @dataclass

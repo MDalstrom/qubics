@@ -18,7 +18,11 @@ def bake(world: World):
     world.add(sphere)
 
     box = create_box(
-        x=450, y=800, width=30, height=30, color=(100, 150, 255), vx=98, vy=100, angle=43
+        x=500, y=800, width=30, height=30, color=(100, 150, 255), vx=-98, vy=100, angle=43
+    )
+    world.add(box)
+    box = create_box(
+        x=450, y=800, width=30, height=30, color=(100, 150, 255), vx=-98, vy=100, angle=43
     )
     world.add(box)
 

@@ -54,8 +54,8 @@ def collision_detection_system(world: World, _: Entity, collision_matrix: Collis
                     normal = Vector(dx / dist, dy / dist)
                     penetration = radius_sum - dist
                     
-                    a_collider_comp.collisions.append(CollisionInfo(Vector(-normal.x, -normal.y), penetration))
-                    b_collider_comp.collisions.append(CollisionInfo(normal, penetration))
+                    a_collider_comp.collisions.append(CollisionInfo(b_entity, Vector(-normal.x, -normal.y), penetration))
+                    b_collider_comp.collisions.append(CollisionInfo(a_entity, normal, penetration))
 
         inner(world)
 
@@ -74,13 +74,13 @@ def collision_detection_system(world: World, _: Entity, collision_matrix: Collis
             _: World,
             circle_entity: Entity,
             circle_collider: CircleCollider,
-            collider: Collider,
+            circle_collider_comp: Collider,
             circle_transform: Transform,
         ):
             if circle_entity == edge_entity:
                 return
             
-            if not collision_matrix[(collider.layer, edge_collider_comp.layer)]:
+            if not collision_matrix[(circle_collider_comp.layer, edge_collider_comp.layer)]:
                 return
 
             edge_x, edge_y = edge_transform.get_world_position()
@@ -121,9 +121,16 @@ def collision_detection_system(world: World, _: Entity, collision_matrix: Collis
                     normal = Vector(dist_x / dist, dist_y / dist)
                 else:
                     edge_len = math.sqrt(edge_length_sq)
-                    normal = Vector(-edge_dy / edge_len, edge_dx / edge_len)
+                    edge_normal = Vector(-edge_dy / edge_len, edge_dx / edge_len)
+                    side = to_circle_x * (-edge_dy) + to_circle_y * edge_dx
+                    normal = edge_normal if side >= 0 else Vector(-edge_normal.x, -edge_normal.y)
                 
-                collider.collisions.append(CollisionInfo(normal, penetration))
+                circle_collider_comp.collisions.append(CollisionInfo(edge_entity, normal, penetration))
+                
+                circle_transform.set_world_position(
+                    circle_x + normal.x * penetration,
+                    circle_y + normal.y * penetration
+                )
 
         inner(world)
 
@@ -183,22 +190,23 @@ def collision_detection_system(world: World, _: Entity, collision_matrix: Collis
             if dist_sq < radius * radius:
                 dist = math.sqrt(dist_sq)
                 
+                cos_a = math.cos(box_angle)
+                sin_a = math.sin(box_angle)
+                contact_world = Vector(
+                    box_x + closest_x * cos_a - closest_y * sin_a,
+                    box_y + closest_x * sin_a + closest_y * cos_a
+                )
+                
                 if dist > 0:
-                    # Normal in local space
                     local_normal_x = dist_x / dist
                     local_normal_y = dist_y / dist
                     
-                    # Transform normal back to world space
-                    cos_a = math.cos(box_angle)
-                    sin_a = math.sin(box_angle)
                     normal = Vector(
                         local_normal_x * cos_a - local_normal_y * sin_a,
                         local_normal_x * sin_a + local_normal_y * cos_a
                     )
                     penetration = radius - dist
                 else:
-                    # Circle center is exactly on the box surface
-                    # Use perpendicular to nearest edge
                     if abs(closest_x) > abs(closest_y):
                         local_normal_x = 1.0 if closest_x > 0 else -1.0
                         local_normal_y = 0.0
@@ -206,15 +214,14 @@ def collision_detection_system(world: World, _: Entity, collision_matrix: Collis
                         local_normal_x = 0.0
                         local_normal_y = 1.0 if closest_y > 0 else -1.0
                     
-                    cos_a = math.cos(box_angle)
-                    sin_a = math.sin(box_angle)
                     normal = Vector(
                         local_normal_x * cos_a - local_normal_y * sin_a,
                         local_normal_x * sin_a + local_normal_y * cos_a
                     )
                     penetration = radius
                 
-                circle_collider_comp.collisions.append(CollisionInfo(normal, penetration))
+                circle_collider_comp.collisions.append(CollisionInfo(box_entity, normal, penetration, contact_world))
+                box_collider_comp.collisions.append(CollisionInfo(circle_entity, Vector(-normal.x, -normal.y), penetration, contact_world))
         
         inner(world)
 
@@ -273,14 +280,8 @@ def collision_detection_system(world: World, _: Entity, collision_matrix: Collis
 
             if min_dist < 0:
                 penetration = -min_dist
-                collision = CollisionInfo(edge_normal, penetration)
+                collision = CollisionInfo(box_entity, edge_normal, penetration)
                 box_collider_comp.collisions.append(collision)
-
-                box_pos = box_transform.get_world_position()
-                box_transform.set_world_position(
-                    box_pos[0] + edge_normal.x * penetration,
-                    box_pos[1] + edge_normal.y * penetration
-                )
 
         inner(world)
     
@@ -293,6 +294,7 @@ def collision_response_system(
     __: Entity,
     collider: Collider,
     rigidbody: Rigidbody,
+    transform: Transform,
 ) -> None:
     if len(collider.collisions) == 0:
         return
@@ -302,10 +304,14 @@ def collision_response_system(
 
         velocity_along_normal = rigidbody.vx * normal.x + rigidbody.vy * normal.y
         if velocity_along_normal < 0:
-            rigidbody.vx -= (
-                2 * velocity_along_normal * normal.x * rigidbody.restitution
-            )
-            rigidbody.vy -= (
-                2 * velocity_along_normal * normal.y * rigidbody.restitution
-            )
+            impulse_mag = -(1 + rigidbody.restitution) * velocity_along_normal * rigidbody.mass
+            rigidbody.vx += (impulse_mag / rigidbody.mass) * normal.x
+            rigidbody.vy += (impulse_mag / rigidbody.mass) * normal.y
+            
+            if collision.contact_point is not None:
+                cx, cy = transform.get_world_position()
+                rx = collision.contact_point.x - cx
+                ry = collision.contact_point.y - cy
+                torque = rx * (impulse_mag * normal.y) - ry * (impulse_mag * normal.x)
+                rigidbody.angular_velocity += torque / rigidbody.inertia
 

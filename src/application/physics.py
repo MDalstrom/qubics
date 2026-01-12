@@ -9,8 +9,10 @@ from ecs.system import for_each
 class Rigidbody:
     vx: float
     vy: float
+    mass: float = 1.0
     angular_velocity: float = 0.0
     angular_damping: float = 0.0
+    inertia: float = 1000.0
     friction: float = 0.0
     restitution: float = 1.0
 
@@ -35,9 +37,8 @@ def acceleration_system(
     rigidbody.vx += acceleration.ax * world.timestep
     rigidbody.vy += acceleration.ay * world.timestep
 
-
 @for_each
-def movement_system(
+def velocity_system(
     world: World, _: Entity, transform: Transform, rigidbody: Rigidbody
 ) -> None:
     transform.save_previous()
@@ -45,3 +46,14 @@ def movement_system(
     wx += rigidbody.vx * world.timestep
     wy += rigidbody.vy * world.timestep
     transform.set_world_position(wx, wy)
+    
+    angle = transform.get_world_angle()
+    angle += rigidbody.angular_velocity * world.timestep
+    transform.set_world_angle(angle)
+
+
+@for_each
+def damping_system(
+    world: World, _: Entity, rigidbody: Rigidbody
+) -> None:
+    rigidbody.angular_velocity *= 1.0 - rigidbody.angular_damping * world.timestep

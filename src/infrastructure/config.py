@@ -3,6 +3,8 @@ _config = {
     "fps": 60,
     "sim_dt": 1.0 / 120.0,
     "scenario": "scenario1",
+    "virtual_width": 900,
+    "virtual_height": 1600,
 }
 
 
