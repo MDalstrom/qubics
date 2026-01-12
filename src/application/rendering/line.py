@@ -3,14 +3,13 @@ from application.rendering.viewport import Viewport
 from ecs.system import for_each
 from ecs.world import World
 from ecs.entity import Entity
-from pygame import Surface, draw
+from pygame import draw
 from application.transform import Transform
 from dataclasses import dataclass
 
 
 @dataclass
 class LineRenderer:
-    half_length: float
     color: tuple[int, int, int]
     width: int = 1
 
@@ -20,14 +19,16 @@ def render(world: World, _: Entity, viewport: Viewport):
     @for_each
     def inner(_: World, __: Entity, line_renderer: LineRenderer, transform: Transform):
         matrix = transform.get_world_matrix()
-        start = matrix @ Vector(-line_renderer.half_length, 0)
-        end = matrix @ Vector(line_renderer.half_length, 0)
+        start = matrix @ Vector(-1, 0)
+        end = matrix @ Vector(1, 0)
+        x0, y0 = start.round()
+        x1, y1 = end.round()
 
         draw.line(
             viewport.surface,
             line_renderer.color,
-            (int(start.x), int(start.y)),
-            (int(end.x), int(end.y)),
+            (x0, y0),
+            (x1, y1),
             line_renderer.width
         )
     

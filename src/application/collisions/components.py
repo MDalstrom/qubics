@@ -22,18 +22,17 @@ class CollisionMatrix:
 
 @dataclass
 class EdgeCollider:
-    length: float
+    pass
 
 
 @dataclass
 class BoxCollider:
-    width: float
-    height: float
+    pass
 
 
 @dataclass
 class CircleCollider:
-    radius: float
+    pass
 
 
 @dataclass
@@ -48,4 +47,5 @@ class CollisionInfo:
 class Collider:
     layer: str = "default"
     collisions: list[CollisionInfo] = field(default_factory=list)
+    vertices: list[Vector] = field(default_factory=list)
 

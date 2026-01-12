@@ -15,6 +15,14 @@ class SystemsGroup:
     act: list[System]
     post: list[System]
 
+    @staticmethod
+    def aggregate(systems: list[System]) -> System:
+        def call(*args, **kwargs) -> None:
+            for s in systems:
+                s(*args, **kwargs)
+
+        return call
+
     def merge(self, other: "SystemsGroup") -> "SystemsGroup":
         return SystemsGroup(
             pre=[*self.pre, *other.pre],
@@ -23,8 +31,8 @@ class SystemsGroup:
         )
 
     def __call__(self, world: World) -> None:
-        for system in [*self.pre, *self.act, *self.post]:
-            system(world)
+        system = SystemsGroup.aggregate([*self.pre, *self.act, *self.post])
+        system(world)
 
 
 def singleton(entity_fn: Callable) -> System:
@@ -56,9 +64,11 @@ def singleton(entity_fn: Callable) -> System:
             return self._system(world)
 
         def __str__(self) -> str:
-            return f'singleton@{str(self._fn)}'
+            return f"singleton@{str(self._fn)}"
 
     return Wrapper(entity_fn, system)
+
+
 def for_each(entity_fn: Callable) -> System:
     sig = inspect.signature(entity_fn)
     params = list(sig.parameters.values())[2:]  # skip world, entity
@@ -87,6 +97,6 @@ def for_each(entity_fn: Callable) -> System:
             return self._system(world)
 
         def __str__(self) -> str:
-            return f'for_each@{str(self._fn)}'
+            return f"for_each@{str(self._fn)}"
 
     return Wrapper(entity_fn, system)

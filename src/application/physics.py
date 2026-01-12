@@ -11,10 +11,20 @@ class Rigidbody:
     vy: float
     mass: float = 1.0
     angular_velocity: float = 0.0
-    angular_damping: float = 0.0
+    angular_damping: float = 0.5
     inertia: float = 1000.0
     friction: float = 0.0
     restitution: float = 1.0
+    position_correction: float = 0.2
+    slop: float = 0.01
+    
+    @property
+    def inv_mass(self) -> float:
+        return 1.0 / self.mass if self.mass > 0 else 0.0
+    
+    @property
+    def inv_inertia(self) -> float:
+        return 1.0 / self.inertia if self.inertia > 0 else 0.0
 
 
 @dataclass
@@ -41,7 +51,6 @@ def acceleration_system(
 def velocity_system(
     world: World, _: Entity, transform: Transform, rigidbody: Rigidbody
 ) -> None:
-    transform.save_previous()
     wx, wy = transform.get_world_position()
     wx += rigidbody.vx * world.timestep
     wy += rigidbody.vy * world.timestep

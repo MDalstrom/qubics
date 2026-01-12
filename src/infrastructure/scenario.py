@@ -2,7 +2,7 @@ from importlib import import_module
 
 from pygame import Surface
 from application.background import fill_background
-from application.collisions import systems
+from application.collisions.systems import export as collisions
 from application.collisions.components import CollisionMatrix
 from application.display import (
     Duration,
@@ -12,6 +12,7 @@ from application.display import (
     handle_events,
 )
 from application.physics import acceleration_system, velocity_system, damping_system
+from application.transform import save_transform_state
 from application.rendering import circle, line, box
 from application.rendering.viewport import Viewport
 from application.stats.systems import create_render_text, deal_damage
@@ -54,8 +55,8 @@ def _get_base_scenario(
     return Scenario(
         bake,
         SystemsGroup(
-            [duration_system],
-            [acceleration_system, velocity_system, damping_system, systems.clear_collisions, systems.collision_detection_system, systems.collision_response_system],
+            [duration_system, save_transform_state],
+            [*collisions, acceleration_system, velocity_system, damping_system],
             [deal_damage],
         ),
         SystemsGroup(

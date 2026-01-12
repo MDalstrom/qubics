@@ -1,12 +1,16 @@
 import math
-from dataclasses import dataclass
-from typing import Union, overload
+from dataclasses import dataclass, field
+from typing import Iterable, Union, overload
 
 
 @dataclass
 class Vector:
     x: float
     y: float
+
+    @staticmethod
+    def identity() -> 'Vector':
+        return Vector(1, 1)
 
     def __add__(self, other: 'Vector') -> 'Vector':
         return Vector(self.x + other.x, self.y + other.y)
@@ -43,6 +47,10 @@ class Vector:
     def __neg__(self) -> 'Vector':
         return Vector(-self.x, -self.y)
 
+    def __iter__(self):
+        yield self.x
+        yield self.y
+
     def dot(self, other: 'Vector') -> float:
         return self.x * other.x + self.y * other.y
 
@@ -57,6 +65,9 @@ class Vector:
         if length == 0:
             return Vector(0, 0)
         return Vector(self.x / length, self.y / length)
+    
+    def multiply(self, other: 'Vector') -> 'Vector':
+        return Vector(self.x * other.x, self.y * other.y)
 
     def scale(self, scalar: float) -> 'Vector':
         return Vector(self.x * scalar, self.y * scalar)
@@ -93,10 +104,10 @@ class Matrix:
         return Matrix([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
 
     @staticmethod
-    def transform(x: float, y: float, angle: float) -> 'Matrix':
+    def transform(x: float, y: float, angle: float, scale_x: float = 1.0, scale_y: float = 1.0) -> 'Matrix':
         c = math.cos(angle)
         s = math.sin(angle)
-        return Matrix([[c, -s, x], [s, c, y], [0.0, 0.0, 1.0]])
+        return Matrix([[c * scale_x, -s * scale_y, x], [s * scale_x, c * scale_y, y], [0.0, 0.0, 1.0]])
 
     def __getitem__(self, key: tuple[int, int]) -> float:
         row, col = key
@@ -143,6 +154,16 @@ class Matrix:
         result = [[self.data[i][j] + other.data[i][j] for j in range(self.cols)] for i in range(self.rows)]
         return Matrix(result)
 
+    def __str__(self) -> str:
+        a = self.data
+        points = [
+            a[0][0], a[0][1], a[0][2],
+            a[1][0], a[1][1], a[1][2],
+            a[2][0], a[2][1], a[2][2],
+        ]
+        points = [str(p) for p in points]
+        return f'Matrix({", ".join(points)})'
+
     def copy(self) -> 'Matrix':
         return Matrix(self.data)
 
@@ -177,3 +198,9 @@ class Matrix:
             ]
         ]
         return Matrix(result)
+
+def get_corners(v: Vector) -> Iterable[Vector]:
+    yield Vector(-v.x, -v.y)
+    yield Vector(v.x, -v.y)
+    yield Vector(v.x, v.y)
+    yield Vector(-v.x, v.y)
