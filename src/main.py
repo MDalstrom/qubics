@@ -15,8 +15,9 @@ pygame.init()
 
 if "--watch=true" in sys.argv:
     current: Callable | None = None
-    watcher = FileWatcher()
+    fallback = 0.0
 
+    watcher = FileWatcher()
     def wrap(*args, **kwargs):
         global current
         if watcher.changed():
@@ -24,7 +25,10 @@ if "--watch=true" in sys.argv:
             current = None
         if not current:
             current = get_loop()
-        return current(*args, **kwargs)
+        try:
+            return current(*args, **kwargs)
+        except:
+            return fallback
 
     loop = wrap
 else:
