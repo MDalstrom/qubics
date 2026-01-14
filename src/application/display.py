@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 import numpy as np
 import pygame
-from pygame import Surface
 from application.rendering.viewport import Viewport
+from application.transform import Transform
 from ecs.entity import Entity
 from ecs.system import for_each
 from ecs.world import World
@@ -35,19 +35,47 @@ def duration_system(world: World, _: Entity, duration: Duration):
 def create_interactive_system(resolution: tuple[int, int]):
     output_surface = pygame.display.set_mode(resolution)
     @for_each
-    def interactive_system(_: World, __: Entity, viewport: Viewport):
-        surface = pygame.transform.smoothscale(viewport.surface, resolution)
+    def interactive_system(_: World, __: Entity, viewport: Viewport, transform: Transform):
+        vw, vh = viewport.resolution
+        cam_x, cam_y = transform.get_world_position()
+        
+        offset_x = int(cam_x - vw / 2)
+        offset_y = int(cam_y - vh / 2)
+        
+        cropped = viewport.surface.subsurface((
+            max(0, offset_x), 
+            max(0, offset_y),
+            min(vw, vw - offset_x),
+            min(vh, vh - offset_y)
+        ))
+        
+        surface = pygame.transform.smoothscale(cropped, resolution)
+        surface = pygame.transform.flip(surface, False, True)
+        pygame.display.update()
         output_surface.blit(surface, (0, 0))
-        pygame.display.flip()
 
     return interactive_system
 
 
 def create_export_system(writer, resolution: tuple[int, int]):
     @for_each
-    def export_system(_: World, __: Entity, viewport: Viewport):
-        scaled_surface = pygame.transform.smoothscale(viewport.surface, resolution)
-        frame_array = pygame.surfarray.array3d(scaled_surface)
+    def export_system(_: World, __: Entity, viewport: Viewport, transform: Transform):
+        vw, vh = viewport.resolution
+        cam_x, cam_y = transform.get_world_position()
+        
+        offset_x = int(cam_x - vw / 2)
+        offset_y = int(cam_y - vh / 2)
+        
+        cropped = viewport.surface.subsurface((
+            max(0, offset_x), 
+            max(0, offset_y),
+            min(vw, vw - offset_x),
+            min(vh, vh - offset_y)
+        ))
+        
+        scaled_surface = pygame.transform.smoothscale(cropped, resolution)
+        flipped_surface = pygame.transform.flip(scaled_surface, False, True)
+        frame_array = pygame.surfarray.array3d(flipped_surface)
         frame_array = np.transpose(frame_array, (1, 0, 2))
         writer.append_data(frame_array)
 

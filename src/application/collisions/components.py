@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from application.math import Vector
-from ecs.entity import Entity, EntityRef
+from ecs.entity import Entity
 
 
 class CollisionMatrix:

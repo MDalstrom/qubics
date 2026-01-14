@@ -13,8 +13,20 @@ class Vector:
         return Vector(1, 1)
     
     @staticmethod
+    def inf() -> 'Vector':
+        return Vector(float('inf'), float('inf'))
+
+    @staticmethod
     def zero() -> 'Vector':
         return Vector(0.0, 0.0)
+    
+    @staticmethod
+    def up() -> 'Vector':
+        return Vector(0, 1)
+
+    @staticmethod
+    def right() -> 'Vector':
+        return Vector(1, 0)
 
     def __add__(self, other: 'Vector') -> 'Vector':
         return Vector(self.x + other.x, self.y + other.y)
@@ -26,19 +38,17 @@ class Vector:
     def __mul__(self, other: Union[float, int]) -> 'Vector': ...
 
     @overload
-    def __mul__(self, other: 'Vector') -> float: ...
+    def __mul__(self, other: 'Vector') -> 'Vector': ...
 
-    def __mul__(self, other: Union[float, int, 'Vector']) -> Union['Vector', float]:
+    def __mul__(self, other: Union[float, int, 'Vector']) -> 'Vector':
         if isinstance(other, (float, int)):
             return Vector(self.x * other, self.y * other)
         elif isinstance(other, Vector):
-            return self.x * other.x + self.y * other.y
-        return NotImplemented
+            return Vector(self.x * other.x, self.y * other.y)
 
     def __rmul__(self, other: Union[float, int]) -> 'Vector':
         if isinstance(other, (float, int)):
             return Vector(self.x * other, self.y * other)
-        return NotImplemented
 
     def __truediv__(self, scalar: Union[float, int]) -> 'Vector':
         return Vector(self.x / scalar, self.y / scalar)
@@ -55,8 +65,17 @@ class Vector:
         yield self.x
         yield self.y
 
+    def cross_scalar(self, scalar: float) -> 'Vector':
+        return Vector(-scalar * self.y, scalar * self.x)
+
+    def cross(self, other: 'Vector') -> float:
+        return self.x * other.y - self.y * other.x
+
     def dot(self, other: 'Vector') -> float:
         return self.x * other.x + self.y * other.y
+    
+    def perpendicular(self) -> 'Vector':
+        return Vector(-self.y, self.x)
 
     def length(self) -> float:
         return math.sqrt(self.x * self.x + self.y * self.y)
@@ -72,6 +91,9 @@ class Vector:
     
     def multiply(self, other: 'Vector') -> 'Vector':
         return Vector(self.x * other.x, self.y * other.y)
+    
+    def divide(self, other: 'Vector') -> 'Vector':
+        return Vector(self.x / other.x, self.y / other.y)
 
     def scale(self, scalar: float) -> 'Vector':
         return Vector(self.x * scalar, self.y * scalar)
@@ -203,8 +225,18 @@ class Matrix:
         ]
         return Matrix(result)
 
+def clamp(source, min_value, max_value):
+    return max(min(source, max_value), min_value)
+
+def clamp01(source):
+    return clamp(source, 0, 1)
+def clamp1(source):
+    return clamp(source, -1, 1)
+
 def get_corners(v: Vector) -> Iterable[Vector]:
     yield Vector(-v.x, -v.y)
     yield Vector(v.x, -v.y)
     yield Vector(v.x, v.y)
     yield Vector(-v.x, v.y)
+
+identity_corners = list(get_corners(Vector.identity()))

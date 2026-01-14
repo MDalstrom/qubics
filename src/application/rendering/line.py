@@ -18,7 +18,7 @@ class LineRenderer:
 def render(world: World, _: Entity, viewport: Viewport):
     @for_each
     def inner(_: World, __: Entity, line_renderer: LineRenderer, transform: Transform):
-        matrix = transform.get_world_matrix()
+        matrix = transform.get_interpolated_world_matrix(world.alpha)
         start = matrix @ Vector(-1, 0)
         end = matrix @ Vector(1, 0)
         x0, y0 = start.round()

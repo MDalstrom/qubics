@@ -17,7 +17,7 @@ class BoxRenderable:
 def render(world: World, _: Entity, viewport: Viewport):
     @for_each
     def inner(_: World, __: Entity, box: BoxRenderable, transform: Transform):
-        matrix = transform.get_interpolated_world_matrix(world.alpha)
+        matrix = transform.get_world_matrix()
         local_corners = get_corners(Vector.identity())
         world_corners = [matrix @ corner for corner in local_corners]
         rounded_corners = [corner.round() for corner in world_corners]

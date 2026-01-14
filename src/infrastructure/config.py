@@ -1,10 +1,11 @@
 _config = {
     "bg_color": (255, 255, 255),
     "fps": 60,
-    "sim_dt": 1.0 / 120.0,
+    "sim_dt": 1.0 / 60.0,
     "scenario": "scenario1",
     "virtual_width": 900,
     "virtual_height": 1600,
+    "debug": True
 }
 
 
@@ -27,6 +28,7 @@ def get_config():
     parser.add_argument("-d", "--duration", type=int)
     parser.add_argument("-w", "--width", type=int)
     parser.add_argument("-h", "--height", type=int)
+    parser.add_argument("--debug")
     parser.add_argument("--fps", type=int)
     parsed_config = vars(parser.parse_args())
 

@@ -8,21 +8,19 @@ from .shared import create_sphere, create_box
 
 def bake(world: World):
     # sphere = create_sphere(
-    #     x=200, y=800, radius=20, color=(100, 150, 255), vx=100, vy=100
+    #     x=450, y=900, radius=40, color=(100, 150, 255), vx=0, vy=-200
     # )
     # world.add(sphere)
-    #
-    # sphere = create_sphere(
-    #     x=100, y=800, radius=20, color=(100, 150, 255), vx=100, vy=100
-    # )
-    # world.add(sphere)
-    #
+    sphere = create_sphere(
+        x=450, y=700, radius=40, color=(100, 150, 255), vx=0, vy=-90
+    )
+    world.add(sphere)
     box = create_box(
-        x=600, y=800, width=30, height=30, color=(100, 150, 255), vx=-40, vy=0, angle=43
+        x=400, y=600, width=30, height=30, color=(100, 150, 255), vx=0, vy=-100, angle=32
     )
     world.add(box)
     box = create_box(
-        x=300, y=800, width=30, height=30, color=(100, 150, 255), vx=40, vy=0, angle=43
+        x=500, y=600, width=30, height=30, color=(100, 150, 255), vx=0, vy=-100, angle=0
     )
     world.add(box)
 
