@@ -1,3 +1,4 @@
+from os import stat
 from ecs.entity import Entity
 from ecs.system import for_each
 from ecs.world import World
@@ -30,6 +31,11 @@ class Transform:
         sx = math.sqrt(matrix[0, 0] ** 2 + matrix[1, 0] ** 2)
         sy = math.sqrt(matrix[0, 1] ** 2 + matrix[1, 1] ** 2)
         return Vector(sx, sy)
+
+    @staticmethod
+    def get_up(wm: Matrix) -> Vector:
+        v = Vector(wm[0, 1], wm[1, 1])
+        return v
     
     def transpose(self, point: Vector) -> Vector:
         return self.world_matrix @ point
@@ -130,6 +136,27 @@ class Transform:
     def get_world_angle(self) -> float:
         wm = self.world_matrix
         return math.atan2(wm[1, 0], wm[0, 0])
+
+    @property
+    def up(self) -> Vector:
+        """World-space up direction as a unit Vector."""
+        wm = self.world_matrix
+        v = Vector(wm[0, 1], wm[1, 1])
+        return v.normalized()
+
+    @up.setter
+    def up(self, direction: Vector) -> None:
+        """Align the transform so its world up direction matches `direction`.
+
+        The rotation is computed so that R * (0,1) = direction (ignoring scale).
+        """
+        if direction.x == 0 and direction.y == 0:
+            return
+        d = direction.normalized()
+        # For a rotation angle theta, up = R(theta) * (0,1) = (-sin(theta), cos(theta))
+        # Solve for theta: cos(theta) = d.y, -sin(theta) = d.x => theta = atan2(-d.x, d.y)
+        angle = math.atan2(-d.x, d.y)
+        self.set_world_angle(angle)
 
     def set_world_position(self, x: float, y: float) -> None:
         if self.parent is None:

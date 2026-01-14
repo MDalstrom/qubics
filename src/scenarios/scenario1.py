@@ -12,7 +12,7 @@ def bake(world: World):
     # )
     # world.add(sphere)
     sphere = create_sphere(
-        x=450, y=700, radius=40, color=(100, 150, 255), vx=0, vy=-90
+        x=450, y=700, radius=40, color=(100, 150, 255), vx=0, vy=-200
     )
     world.add(sphere)
     box = create_box(
