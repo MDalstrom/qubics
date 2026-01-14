@@ -1,7 +1,7 @@
 from importlib import import_module
 
 from pygame import Surface
-from application import physics
+from application import cleaner, physics
 from application.background import fill_background
 from application import collisions
 from application.collisions.components import CollisionMatrix
@@ -69,7 +69,7 @@ def _get_base_scenario(
         SystemsGroup(
             [duration_system, save_transform_state],
             [*collisions.export, *physics.systems],
-            [deal_damage],
+            [deal_damage, cleaner.system],
         ),
         SystemsGroup(
             [fill_background, handle_events],

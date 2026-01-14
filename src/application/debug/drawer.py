@@ -1,4 +1,5 @@
 from pygame import draw, gfxdraw
+from application.cleaner import Destroyed
 from pygame.draw import line as draw_line
 from application.collisions.components import Collider
 from application.physics.rigidbody import Rigidbody
@@ -7,9 +8,6 @@ from application.rendering.viewport import Viewport
 from ecs.entity import Entity
 from ecs.system import for_each
 from ecs.world import World
-
-class Destroyed():
-    pass
 
 class Debug_ContactPoint():
     timer: float | None = None
@@ -39,7 +37,7 @@ def debug(world: World, _: Entity, viewport: Viewport):
     def draw_contact_points(world: World, entity: Entity, __: Debug_ContactPoint, transform: Transform):
         if entity.has_component(Destroyed):
             return
-        matrix = transform.get_interpolated_world_matrix(world.alpha)
+        matrix = transform.get_world_matrix()
         position = Transform.get_position(matrix)
         up = Transform.get_up(matrix) * 50
         x, y = position.round()
