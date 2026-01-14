@@ -29,6 +29,7 @@ def get_config():
     parser.add_argument("-w", "--width", type=int)
     parser.add_argument("-h", "--height", type=int)
     parser.add_argument("--debug")
+    parser.add_argument("--watch")
     parser.add_argument("--fps", type=int)
     parsed_config = vars(parser.parse_args())
 

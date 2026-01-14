@@ -3,7 +3,8 @@ name = "qubics-py"
 version = "0.0.1"
 dependencies = [
   "pygame>=2.5.0",
-  "imageio[ffmpeg]"
+  "imageio[ffmpeg]",
+  "watchdog"
 ]
 requires-python = ">=3.12"
 

@@ -12,4 +12,4 @@ exp: .venv/.deps-installed
 	$(PY) src/main.py --output=output.mp4 --duration=5 --fps=60 --width=1080 --height=1920
 
 run: .venv/.deps-installed
-	$(PY) src/main.py --fps=120 --width=480 --height=854
+	$(PY) src/main.py --fps=120 --width=480 --height=854 --watch=true
