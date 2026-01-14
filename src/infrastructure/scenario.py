@@ -68,7 +68,7 @@ def _get_base_scenario(
         bake,
         SystemsGroup(
             [duration_system, save_transform_state],
-            [*collisions.export, *physics.systems],
+            [*collisions.export, *physics.alt],
             [deal_damage, cleaner.system],
         ),
         SystemsGroup(

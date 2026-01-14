@@ -26,7 +26,8 @@ if "--watch=true" in sys.argv:
             try:
                 rreload(__file__)
                 current = None
-            except:
+            except Exception as e:
+                print(e)
                 current = lambda: fallback
         if not current:
             current = get_loop()
@@ -35,7 +36,8 @@ if "--watch=true" in sys.argv:
         except KeyboardInterrupt:
             raise
         except Exception as e:
-            print(e)
+            import traceback
+            traceback.print_exception(e)
             return fallback
 
     loop = wrap
@@ -47,5 +49,5 @@ accumulator = 0.0
 while running:
     try:
         accumulator = loop(accumulator)
-    except (ValueError, KeyboardInterrupt):
+    except KeyboardInterrupt:
         running = False

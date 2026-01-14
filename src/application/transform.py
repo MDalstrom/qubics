@@ -129,6 +129,17 @@ class Transform:
         parent_matrix = self.parent.get_interpolated_world_matrix(alpha)
         return parent_matrix @ interp_local
 
+    @property
+    def position(self) -> Vector:
+        wm = self.world_matrix
+        return Vector(wm[0, 2], wm[1, 2])
+    
+    @position.setter
+    def position(self, v: Vector) -> None:
+        wm = self.world_matrix
+        wm[0, 2] = v.x
+        wm[1, 2] = v.y
+
     def get_world_position(self) -> tuple[float, float]:
         wm = self.world_matrix
         return wm[0, 2], wm[1, 2]

@@ -66,7 +66,7 @@ def create_sphere(
             inertia=1000,
         )
     )
-    count = 24
+    count = 64
     iis = [i / (count - 1) for i in range(count)]
     pis = [2 * math.pi * i for i in iis] 
     vertices = [Vector(math.cos(x), math.sin(x)) for x in pis]
