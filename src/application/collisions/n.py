@@ -22,12 +22,12 @@ def s(w: World, e: Entity, collision_matrix: CollisionMatrix):
 
             a_wm = a_transform.get_world_matrix()
             b_wm = b_transform.get_world_matrix()
-            for p1, p2 in a_shape.edges:
-                for p3, p4 in b_shape.edges:
-                    p1 = a_wm @ p1
-                    p2 = a_wm @ p2
-                    p3 = b_wm @ p3
-                    p4 = b_wm @ p4
+            for lp1, lp2 in a_shape.edges:
+                for lp3, lp4 in b_shape.edges:
+                    p1 = a_wm @ lp1
+                    p2 = a_wm @ lp2
+                    p3 = b_wm @ lp3
+                    p4 = b_wm @ lp4
 
                     r = p2 - p1
                     s = p4 - p3
