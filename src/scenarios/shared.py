@@ -37,11 +37,13 @@ def create_bounds(x, y, width, height):
         return entity
 
     color = (0, 0, 0)
-
-    yield create_edge(x, y - height, 0, width)  # Bottom: point right, normal points up
+    
+    # yield create_edge(x, y - height, 0, width)  # Bottom: point right, normal points up
     # yield create_edge(x, y - height, -math.pi, width)  # Top: point left, normal points down
     # yield create_edge(x - width, y, math.pi / 2, height)  # Left: point down, normal points right
     # yield create_edge(x + width, y, -math.pi / 2, height)  # Right: point up, normal points left
+    return
+    yield
 
 
 def create_sphere(
@@ -53,7 +55,7 @@ def create_sphere(
     vy: float = 1000.0,
 ):
     entity = Entity('sphere')
-    entity.add_component(Transform(x, y, 32, 2*radius, radius))
+    entity.add_component(Transform(x, y, 0, radius, radius))
     entity.add_component(
         Rigidbody(
             velocity=Vector(vx, vy),
@@ -64,7 +66,8 @@ def create_sphere(
             inertia=1000,
         )
     )
-    iis = [i / 23 for i in range(24)]
+    count = 24
+    iis = [i / (count - 1) for i in range(count)]
     pis = [2 * math.pi * i for i in iis] 
     vertices = [Vector(math.cos(x), math.sin(x)) for x in pis]
     edges = [(vertices[i], vertices[(i + 1) % len(vertices)]) for i in range(len(vertices))]

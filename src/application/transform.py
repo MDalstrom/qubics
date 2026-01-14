@@ -183,6 +183,22 @@ class Transform:
         local_angle = angle - parent_angle
         self.set_local_transform(current_x, current_y, local_angle, scale.x, scale.y)
 
+    def set_local_scale(self, scale_x: float, scale_y: float) -> None:
+        x = self._local_matrix[0, 2]
+        y = self._local_matrix[1, 2]
+        angle = self.local_angle
+        self.set_local_transform(x, y, angle, scale_x, scale_y)
+
+    def set_world_scale(self, scale_x: float, scale_y: float) -> None:
+        if self.parent is None:
+            self.set_local_scale(scale_x, scale_y)
+            return
+
+        parent_scale = self.parent.get_world_scale()
+        local_scale_x = scale_x / parent_scale.x if parent_scale.x != 0 else scale_x
+        local_scale_y = scale_y / parent_scale.y if parent_scale.y != 0 else scale_y
+        self.set_local_scale(local_scale_x, local_scale_y)
+
     def get_matrix(self) -> Matrix:
         return self.world_matrix
 

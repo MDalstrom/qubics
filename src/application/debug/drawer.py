@@ -1,7 +1,8 @@
-from pygame import draw, gfxdraw
+from pygame import draw, gfxdraw, ver
 from application.cleaner import Destroyed
 from pygame.draw import line as draw_line
 from application.collisions.components import Collider
+from application.collisions.n import Shape
 from application.physics.rigidbody import Rigidbody
 from application.transform import Transform
 from application.rendering.viewport import Viewport
@@ -29,9 +30,21 @@ def debug(world: World, _: Entity, viewport: Viewport):
             e.add_component(Debug_ContactPoint())
             transform = Transform(x=c.contact_point.x, y=c.contact_point.y)
             transform.up = c.normal
+            scale = max(c.penetration, 1.0)
+            transform.set_world_scale(1, scale)
             e.add_component(transform)
             world.add(e)
     spawn_contact_points(world)
+
+    @for_each
+    def draw_shapes(world: World, entity: Entity, shape: Shape, transform: Transform):
+        matrix = transform.get_world_matrix()
+        vertices = [matrix @ p for p, _ in shape.edges]
+        coords = [(p.x, p.y) for p in vertices]
+        if len(vertices) < 3:
+            return
+        gfxdraw.aapolygon(viewport.surface, coords, (255, 0, 255))
+    draw_shapes(world)
 
     @for_each
     def draw_contact_points(world: World, entity: Entity, __: Debug_ContactPoint, transform: Transform):
@@ -39,7 +52,7 @@ def debug(world: World, _: Entity, viewport: Viewport):
             return
         matrix = transform.get_world_matrix()
         position = Transform.get_position(matrix)
-        up = Transform.get_up(matrix) * 50
+        up = Transform.get_up(matrix)
         x, y = position.round()
         vx, vy = up.round()
         gfxdraw.aacircle(viewport.surface, x, y, 5, (255, 0, 0))

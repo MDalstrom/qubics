@@ -9,7 +9,6 @@ T = TypeVar("T")
 @dataclass
 class World:
     timestep: float
-    dt: float = 0.0
     alpha: float = 0.0
     entities: list[Entity] = field(default_factory=list)
 

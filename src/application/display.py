@@ -21,7 +21,7 @@ class End: ...
 def handle_events(world: World):
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            raise ValueError("Interrupted")
+            raise KeyboardInterrupt
 
 
 @for_each

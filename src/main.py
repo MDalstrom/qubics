@@ -3,7 +3,7 @@ from typing import Callable
 from watch import FileWatcher
 import rreload
 import pygame
-
+from logging import Logger
 
 def get_loop():
     import infrastructure.scheduler as scheduler
@@ -13,6 +13,8 @@ def get_loop():
 
 pygame.init()
 
+logger = Logger('main')
+
 if "--watch=true" in sys.argv:
     current: Callable | None = None
     fallback = 0.0
@@ -21,13 +23,19 @@ if "--watch=true" in sys.argv:
     def wrap(*args, **kwargs):
         global current
         if watcher.changed():
-            rreload(__file__)
-            current = None
+            try:
+                rreload(__file__)
+                current = None
+            except:
+                current = lambda: fallback
         if not current:
             current = get_loop()
         try:
             return current(*args, **kwargs)
-        except:
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            print(e)
             return fallback
 
     loop = wrap
