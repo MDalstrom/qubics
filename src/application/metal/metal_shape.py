@@ -11,7 +11,7 @@ import array
 
 @dataclass
 class ShapeRenderer:
-    color: tuple[float, float, float] = (1.0, 1.0, 1.0)
+    color: tuple[float, float, float, float]
 
 
 # Shader source for filled colored shapes
@@ -34,8 +34,8 @@ vertex VertexOut vertex_main(uint vertexID [[vertex_id]],
     return out;
 }
 
-fragment float4 fragment_main(constant float3 &color [[buffer(0)]]) {
-    return float4(color, 1.0);
+fragment float4 fragment_main(constant float4 &color [[buffer(0)]]) {
+    return color;
 }
 """
 
