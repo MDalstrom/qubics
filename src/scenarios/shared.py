@@ -4,6 +4,7 @@ from pygame import ver
 from application.background import Background
 from application.collisions.n import Shape
 from application.math import Vector, identity_corners
+from application.metal.metal_shape import ShapeRenderer
 from application.stats.components import Damage, Health
 from ecs.entity import Entity
 from application.collisions.components import (
@@ -29,7 +30,7 @@ def create_bounds(x, y, width, height):
     def create_edge(x, y, angle, length):
         entity = Entity(name='edge')
         entity.add_component(Transform(x, y, angle, scale_x=length, scale_y=1))
-        entity.add_component(LineRenderer(color, 2))
+        entity.add_component(ShapeRenderer(color))
         entity.add_component(Kinematic())
         entity.add_component(Shape(edges=[(-Vector.right(), Vector.right())]))
         entity.add_component(EdgeCollider())
@@ -74,7 +75,7 @@ def create_sphere(
     entity.add_component(Shape(edges=edges))
     entity.add_component(CircleCollider())
     entity.add_component(Collider())
-    entity.add_component(CircleRenderable(color))
+    entity.add_component(ShapeRenderer(color))
     entity.add_component(Damage(10))
     return entity
 
@@ -104,6 +105,6 @@ def create_box(
     entity.add_component(Shape(edges=[(identity_corners[i], identity_corners[(i + 1) % len(identity_corners)]) for i in range(len(identity_corners))]))
     entity.add_component(BoxCollider())
     entity.add_component(Collider())
-    entity.add_component(BoxRenderable(color))
+    entity.add_component(ShapeRenderer(color))
     entity.add_component(Health(100))
     return entity

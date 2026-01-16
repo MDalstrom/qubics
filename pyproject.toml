@@ -4,7 +4,10 @@ version = "0.0.1"
 dependencies = [
   "pygame>=2.5.0",
   "imageio[ffmpeg]",
-  "watchdog"
+  "watchdog",
+  "pyobjc-framework-Metal",
+  "pyobjc-framework-MetalKit",
+  "pyobjc-framework-Cocoa"
 ]
 requires-python = ">=3.12"
 

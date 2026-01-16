@@ -2,8 +2,7 @@ import sys
 from typing import Callable
 from watch import FileWatcher
 import rreload
-import pygame
-from logging import Logger
+from logging import FATAL, Logger
 
 def get_loop():
     import infrastructure.scheduler as scheduler
@@ -11,7 +10,6 @@ def get_loop():
     return scheduler.get_loop()
 
 
-pygame.init()
 
 logger = Logger('main')
 

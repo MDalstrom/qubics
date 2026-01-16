@@ -1,7 +1,7 @@
 from importlib import import_module
 
-from pygame import Surface
 from application import cleaner, physics
+from application.metal import display_metal
 from application.background import fill_background
 from application import collisions
 from application.collisions.components import CollisionMatrix
@@ -16,6 +16,7 @@ from application.display import (
 from application.physics.rigidbody import acceleration_system, velocity_system, angular_damping_system
 from application.transform import save_transform_state, Transform
 from application.rendering import circle, line, box
+from application import metal
 from application.rendering.viewport import Viewport
 from application.stats.systems import create_render_text, deal_damage
 from ecs.entity import Entity
@@ -46,14 +47,12 @@ def optional(s: System | None) -> System:
 def _get_base_scenario(
     config=get_config(), writer_fn=get_writer
 ) -> Scenario:
-    def bake(world: World):
-        viewport_entity = Entity('viewport')
-        resolution = (config['virtual_width'], config['virtual_height']) 
-        surface = Surface(resolution)
-        viewport_entity.add_component(Transform(resolution[0] / 2, resolution[1] / 2))
-        viewport_entity.add_component(Viewport(surface, resolution))
-        world.add(viewport_entity)
+    resolution = (config['width'], config['height'])
+    virtual_size = (config['virtual_width'], config['virtual_height'])
+    mtk_system, viewport = display_metal.create_interactive_system(resolution, virtual_size)
 
+    def bake(world: World):
+        world.add(viewport)
         collision_matrix_entity = Entity('collision_matrix')
         collision_matrix_entity.add_component(CollisionMatrix(_collision_layers))
         world.add(collision_matrix_entity) 
@@ -64,6 +63,8 @@ def _get_base_scenario(
             duration_entity.add_component(Duration(duration))
             world.add(duration_entity)
 
+    
+
     return Scenario(
         bake,
         SystemsGroup(
@@ -72,14 +73,17 @@ def _get_base_scenario(
             [deal_damage, cleaner.system],
         ),
         SystemsGroup(
-            [fill_background, handle_events],
-            [circle.render, line.render, box.render, create_render_text(), debug if config.get('debug') else nop],
+            [metal.handle_events],
             [
-                (
-                    create_export_system(writer_fn(), (config['width'], config['height']))
-                    if config.get("output") is not None
-                    else create_interactive_system((config['width'], config['height']))
-                )
+                metal.draw_shape_system
+            ],
+            [
+                # (
+                #     create_export_system(writer_fn(), (config['width'], config['height']))
+                #     if config.get("output") is not None
+                #     else create_interactive_system((config['width'], config['height']))
+                # )
+                mtk_system
             ],
         ),
     )
