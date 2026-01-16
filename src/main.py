@@ -2,11 +2,10 @@ import sys
 from typing import Callable
 from watch import FileWatcher
 import rreload
-from logging import FATAL, Logger
+from logging import Logger
 
 def get_loop():
     import infrastructure.scheduler as scheduler
-
     return scheduler.get_loop()
 
 

@@ -9,13 +9,20 @@ def get_export_clock(config=get_config()) -> ClockFn:
     return tick
 
 
-def get_realtime_clock(config=get_config()) -> ClockFn:
-    from pygame.time import Clock
+def get_realtime_clock() -> ClockFn:
+    from time import time
 
-    clock = Clock()
+    last = None
 
     def tick():
-        return clock.tick(config["fps"]) / 1000.0
+        nonlocal last
+        current = time()
+        if last is None:
+            delta = 0.0
+        else:
+            delta = current - last
+        last = current
+        return delta
 
     return tick
 

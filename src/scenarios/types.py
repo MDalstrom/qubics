@@ -7,7 +7,6 @@ from ecs.world import World
 class Baker(Protocol):
     def __call__(self, world: World) -> None: ...
 
-
 @dataclass
 class Scenario:
     bake: Baker

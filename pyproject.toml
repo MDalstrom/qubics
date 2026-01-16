@@ -2,8 +2,6 @@
 name = "qubics-py"
 version = "0.0.1"
 dependencies = [
-  "pygame>=2.5.0",
-  "imageio[ffmpeg]",
   "watchdog",
   "pyobjc-framework-Metal",
   "pyobjc-framework-MetalKit",

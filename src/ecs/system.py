@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from typing import Protocol, Callable, get_type_hints
 import inspect
-from functools import partial, update_wrapper
-from ecs.entity import Entity
+from functools import update_wrapper
 from ecs.world import World
 
 
@@ -35,12 +34,13 @@ class SystemsGroup:
         system = SystemsGroup.aggregate([*self.pre, *self.act, *self.post])
         system(world)
 
+
 def for_each(entity_fn: Callable) -> System:
     sig = inspect.signature(entity_fn)
     params = list(sig.parameters.values())[2:]  # skip world, entity
     type_hints = get_type_hints(entity_fn)
     component_types = [type_hints[p.name] for p in params]
-        
+
     def system(world: World) -> None:
         for entity in world.entities:
             components = []

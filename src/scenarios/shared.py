@@ -1,7 +1,4 @@
 import math
-from numpy import identity
-from pygame import ver
-from application.background import Background
 from application.collisions.n import Shape
 from application.math import Vector, identity_corners
 from application.metal.metal_shape import ShapeRenderer
@@ -15,15 +12,6 @@ from application.collisions.components import (
 )
 from application.transform import Transform
 from application.physics.rigidbody import Kinematic, Rigidbody
-from application.rendering.circle import CircleRenderable
-from application.rendering.line import LineRenderer
-from application.rendering.box import BoxRenderable
-
-
-def create_background():
-    entity = Entity('background')
-    entity.add_component(Background((255, 255, 255)))
-    return entity
 
 
 def create_bounds(x, y, width, height):
@@ -55,28 +43,7 @@ def create_sphere(
     vx: float = 1000.0,
     vy: float = 1000.0,
 ):
-    entity = Entity('sphere')
-    entity.add_component(Transform(x, y, 0, radius, radius))
-    entity.add_component(
-        Rigidbody(
-            velocity=Vector(vx, vy),
-            mass=1,
-            angular_damping=0.5,
-            center_of_mass=Vector.zero(),
-            restitution=0.5,
-            inertia=1000,
-        )
-    )
-    count = 64
-    iis = [i / (count - 1) for i in range(count)]
-    pis = [2 * math.pi * i for i in iis] 
-    vertices = [Vector(math.cos(x), math.sin(x)) for x in pis]
-    edges = [(vertices[i], vertices[(i + 1) % len(vertices)]) for i in range(len(vertices))]
-    entity.add_component(Shape(edges=edges))
-    entity.add_component(CircleCollider())
-    entity.add_component(Collider())
-    entity.add_component(ShapeRenderer(color))
-    entity.add_component(Damage(10))
+
     return entity
 
 

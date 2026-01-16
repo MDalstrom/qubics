@@ -10,16 +10,6 @@ from ecs.world import World
 
 
 @dataclass
-class Duration:
-    max_time: float
-    elapsed: float = 0.0
-
-
-@dataclass
-class End: ...
-
-
-@dataclass
 class MetalViewport:
     view: MetalKit.MTKView
     resolution: tuple[int, int]
@@ -73,14 +63,6 @@ def handle_events(world: World):
         app.updateWindows()
 
 
-@for_each
-def duration_system(world: World, _: Entity, duration: Duration):
-    duration.elapsed += world.timestep
-    if duration.elapsed < duration.max_time:
-        return
-    raise ValueError("Duration reached")
-
-
 def create_interactive_system(resolution: tuple[int, int], size: tuple[int, int]):
     device = Metal.MTLCreateSystemDefaultDevice()
     if device is None:
@@ -91,7 +73,7 @@ def create_interactive_system(resolution: tuple[int, int], size: tuple[int, int]
     
     window = Cocoa.NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
         Cocoa.NSMakeRect(0, 0, resolution[0], resolution[1]),
-        Cocoa.NSWindowStyleMaskTitled | Cocoa.NSWindowStyleMaskClosable,
+        Cocoa.NSWindowStyleMaskTitled | Cocoa.NSClosableWindowMask,
         Cocoa.NSBackingStoreBuffered,
         False
     )
@@ -113,7 +95,7 @@ def create_interactive_system(resolution: tuple[int, int], size: tuple[int, int]
     
     viewport_entity = Entity()
     viewport_entity.add_component(MetalViewport(view=metal_view, resolution=resolution, size=size))
-    viewport_entity.add_component(Transform(x=450, y=900))
+    viewport_entity.add_component(Transform(x=0, y=0))
     
     @for_each
     def interactive_system(_: World, __: Entity, viewport: MetalViewport):
@@ -126,5 +108,5 @@ def create_export_system(writer, resolution: tuple[int, int]):
     @for_each
     def export_system(_: World, __: Entity, viewport: MetalViewport, transform: Transform):
         pass
-    
     return export_system
+
