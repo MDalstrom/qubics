@@ -12,13 +12,17 @@ from .handle_events import handle_events
 from .shape import draw_shape_system
 from .interactive import create as create_interactive, create_view
 from .export import create as create_export, create_texture
-from .factory import create, create_delegate, create_device, create_library, create_pipeline
+from .factory import (
+    create,
+    create_delegate,
+    create_device,
+    create_library,
+    create_pipeline,
+)
 
 device = create_device()
 
-library = create_library(
-    device
-)
+library = create_library(device)
 
 pipeline = create_pipeline(
     library,
@@ -27,35 +31,40 @@ pipeline = create_pipeline(
     fragment_fn_name="fragment_main",
 )
 
+
 def get_interactive(
-    width: int, height: int,
+    width: int,
+    height: int,
     color: Color,
 ):
     rect = Cocoa.NSMakeRect(0, 0, width, height)
     background_color = Metal.MTLClearColorMake(color.r, color.g, color.b, color.a)
     delegate = create_delegate()
-    view = create_view(
-        device, delegate,
-        rect=rect,
-        background_color=background_color
-    )
+    view = create_view(device, delegate, rect=rect, background_color=background_color)
     return create_interactive(view)
 
+
 def get_export(
-    width: int, height: int, 
-    fps: int, 
-    path: str, 
-    color: Color,
-    create_pool: Callable
+    width: int, height: int, fps: int, path: str, color: Color, create_pool: Callable
 ):
     recorder = FFmpegRecorder(width, height, fps, path)
 
     from infrastructure import cleanup
+
     cleanup.dependencies.append(recorder.finish)
-    
+
     texture = create_texture(device, width=width, height=height)
-    return create_export(texture, device, recorder, create_pool, width=width, height=height, background_color=color)
-    
+    return create_export(
+        texture,
+        device,
+        recorder,
+        create_pool,
+        width=width,
+        height=height,
+        background_color=color,
+    )
+
+
 def get_scenario():
     base = create(device, pipeline)
     core = Scenario(

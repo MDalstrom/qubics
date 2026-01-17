@@ -22,18 +22,19 @@ def create_delegate():
             if self is None:
                 return None
             return self
+
         def mtkView_drawableSizeWillChange_(self, view, size):
-            pass   
+            pass
 
         def drawInMTKView_(self, view):
             drawable = view.currentDrawable()
             if drawable is None:
                 return
-            
+
             descriptor = view.currentRenderPassDescriptor()
             if descriptor is None:
                 return
-            
+
             command_queue = view.device().newCommandQueue()
             command_buffer = command_queue.commandBuffer()
             encoder = command_buffer.renderCommandEncoderWithDescriptor_(descriptor)
@@ -43,14 +44,13 @@ def create_delegate():
 
     return Delegate()
 
+
 def create_device():
     device = Metal.MTLCreateSystemDefaultDevice()
     return device
 
 
-def create_library(
-    device: Metal.MTLDevice
-):
+def create_library(device: Metal.MTLDevice):
     library_path = Path(__file__).resolve().parent.parent.parent
     library_path = library_path / "build" / "default.metallib"
     url = Foundation.NSURL.fileURLWithPath_(str(library_path))
@@ -58,20 +58,22 @@ def create_library(
     assert not error
     return library
 
+
 def create_pipeline(
     library: Metal.MTLLibrary,
     device: Metal.MTLDevice,
     *,
-    vertex_fn_name: str, fragment_fn_name: str,
+    vertex_fn_name: str,
+    fragment_fn_name: str,
 ):
     descriptor = Metal.MTLRenderPipelineDescriptor.alloc().init()
-    
+
     vertex_fn = library.newFunctionWithName_(vertex_fn_name)
     fragment_fn = library.newFunctionWithName_(fragment_fn_name)
 
     descriptor.setVertexFunction_(vertex_fn)
     descriptor.setFragmentFunction_(fragment_fn)
-    
+
     color_attachment = descriptor.colorAttachments().objectAtIndexedSubscript_(0)
     color_attachment.setPixelFormat_(Metal.MTLPixelFormatBGRA8Unorm)
     color_attachment.setBlendingEnabled_(True)
@@ -79,8 +81,12 @@ def create_pipeline(
     color_attachment.setAlphaBlendOperation_(Metal.MTLBlendOperationAdd)
     color_attachment.setSourceRGBBlendFactor_(Metal.MTLBlendFactorSourceAlpha)
     color_attachment.setSourceAlphaBlendFactor_(Metal.MTLBlendFactorSourceAlpha)
-    color_attachment.setDestinationRGBBlendFactor_(Metal.MTLBlendFactorOneMinusSourceAlpha)
-    color_attachment.setDestinationAlphaBlendFactor_(Metal.MTLBlendFactorOneMinusSourceAlpha)
+    color_attachment.setDestinationRGBBlendFactor_(
+        Metal.MTLBlendFactorOneMinusSourceAlpha
+    )
+    color_attachment.setDestinationAlphaBlendFactor_(
+        Metal.MTLBlendFactorOneMinusSourceAlpha
+    )
 
     state, error = device.newRenderPipelineStateWithDescriptor_error_(descriptor, None)
     assert not error
@@ -95,23 +101,19 @@ class RenderingState:
     encoder: Metal.MTLRenderCommandEncoder
     descriptor: Any
 
+
 def create(
-    device: Metal.MTLDevice,
-    pipeline_state: Metal.MTLRenderingPipelineState
+    device: Metal.MTLDevice, pipeline_state: Metal.MTLRenderingPipelineState
 ) -> Scenario:
-    
+
     def bake(world: World):
         queue = device.newCommandQueue()
 
         e = Entity("RenderingState")
-        e.add_component(RenderingState(
-            device,
-            queue,
-            None, None, None
-        ))
+        e.add_component(RenderingState(device, queue, None, None, None))
         e.add_component(Transform(0, 0, scale_x=900, scale_y=1600))
         world.add(e)
-    
+
     @for_each
     def set_encoder(_: World, __: Entity, state: RenderingState):
         buffer = state.queue.commandBuffer()

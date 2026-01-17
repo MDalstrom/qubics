@@ -9,14 +9,14 @@ def handle_events(world: World):
             Cocoa.NSEventMaskAny,
             Cocoa.NSDate.distantPast(),
             Cocoa.NSDefaultRunLoopMode,
-            True
+            True,
         )
         if event is None:
             break
-        
+
         if event.type() == Cocoa.NSEventTypeKeyDown:
             if event.keyCode() == 53:  # ESC key
                 raise KeyboardInterrupt
-        
+
         app.sendEvent_(event)
         app.updateWindows()

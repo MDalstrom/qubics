@@ -10,6 +10,7 @@ from scenarios.types import Scenario
 
 from .factory import RenderingState
 
+
 def create_view(
     device: Metal.MTLDevice,
     delegate: MetalKit.MTKViewDelegate,
@@ -24,15 +25,12 @@ def create_view(
         rect,
         Cocoa.NSWindowStyleMaskTitled | Cocoa.NSClosableWindowMask,
         Cocoa.NSBackingStoreBuffered,
-        False
+        False,
     )
     window.setTitle_("Metal Viewport")
     window.center()
 
-    view = MetalKit.MTKView.alloc().initWithFrame_device_(
-        rect,
-        device
-    )
+    view = MetalKit.MTKView.alloc().initWithFrame_device_(rect, device)
     view.setClearColor_(background_color)
     view.setDelegate_(delegate)
 
@@ -42,15 +40,18 @@ def create_view(
 
     return view
 
+
 def create(view: MetalKit.MTKView):
     @for_each
     def set_descriptor(_: World, __: Entity, state: RenderingState):
         state.descriptor = view.currentRenderPassDescriptor()
+
     @for_each
     def clean_buffer(_: World, __: Entity, state: RenderingState):
         state.buffer.presentDrawable_(view.currentDrawable())
         state.buffer.commit()
         state.buffer = None
+
     return Scenario(
         SystemsGroup([], [], []),
         SystemsGroup([], [], []),
