@@ -24,7 +24,7 @@ if "--watch=true" in sys.argv:
                 current = None
             except Exception as e:
                 print(e)
-                current = lambda: fallback
+                current = lambda *a, **kw: fallback
         if not current:
             current = get_loop()
         try:
