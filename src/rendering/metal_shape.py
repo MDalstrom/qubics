@@ -1,43 +1,19 @@
 from dataclasses import dataclass
+from pathlib import Path
 from application.collisions.n import Shape
-from application.metal.display_metal import MetalViewport
+from .display import MetalViewport
 from application.transform import Transform
 from ecs.entity import Entity
 from ecs.system import for_each
 from ecs.world import World
 import Metal
+import Foundation
 import array
 
 
 @dataclass
 class ShapeRenderer:
     color: tuple[float, float, float, float]
-
-
-# Shader source for filled colored shapes
-SHADER_SOURCE = """
-#include <metal_stdlib>
-using namespace metal;
-
-struct Vertex {
-    float2 position [[attribute(0)]];
-};
-
-struct VertexOut {
-    float4 position [[position]];
-};
-
-vertex VertexOut vertex_main(uint vertexID [[vertex_id]],
-                             constant Vertex *vertices [[buffer(0)]]) {
-    VertexOut out;
-    out.position = float4(vertices[vertexID].position, 0.0, 1.0);
-    return out;
-}
-
-fragment float4 fragment_main(constant float4 &color [[buffer(0)]]) {
-    return color;
-}
-"""
 
 
 _pipeline_cache = {}
@@ -48,8 +24,11 @@ def _get_or_create_pipeline(device):
     if device in _pipeline_cache:
         return _pipeline_cache[device]
     
-    library = device.newLibraryWithSource_options_error_(SHADER_SOURCE, None, None)[0]
-    if library is None:
+    library_path = Path(__file__).resolve().parent.parent.parent
+    library_path = library_path / "build" / "default.metallib"
+    url = Foundation.NSURL.fileURLWithPath_(str(library_path))
+    library, error = device.newLibraryWithURL_error_(url, None)
+    if error:
         raise RuntimeError("Failed to compile shader library")
     
     vertex_function = library.newFunctionWithName_("vertex_main")
@@ -80,15 +59,31 @@ def _get_or_create_pipeline(device):
 def draw_shape_system(world: World, __: Entity, viewport: MetalViewport, viewport_transform: Transform):
     """System that draws shapes in the Metal viewport."""
     
-    drawable = viewport.view.currentDrawable()
-    if drawable is None:
-        return
+    # Determine if we're in interactive or export mode
+    is_export_mode = viewport.view is None
     
-    descriptor = viewport.view.currentRenderPassDescriptor()
-    if descriptor is None:
-        return
+    if is_export_mode:
+        # Export mode: render to offscreen texture
+        device = viewport.device
+        
+        descriptor = Metal.MTLRenderPassDescriptor.alloc().init()
+        color_attachment = descriptor.colorAttachments().objectAtIndexedSubscript_(0)
+        color_attachment.setTexture_(viewport.offscreen_texture)
+        color_attachment.setLoadAction_(Metal.MTLLoadActionClear)
+        color_attachment.setStoreAction_(Metal.MTLStoreActionStore)
+        color_attachment.setClearColor_(Metal.MTLClearColorMake(0.1, 0.1, 0.15, 1.0))
+    else:
+        # Interactive mode: render to view
+        drawable = viewport.view.currentDrawable()
+        if drawable is None:
+            return
+        
+        descriptor = viewport.view.currentRenderPassDescriptor()
+        if descriptor is None:
+            return
+        
+        device = viewport.view.device()
     
-    device = viewport.view.device()
     command_queue = device.newCommandQueue()
     command_buffer = command_queue.commandBuffer()
     encoder = command_buffer.renderCommandEncoderWithDescriptor_(descriptor)
@@ -101,7 +96,7 @@ def draw_shape_system(world: World, __: Entity, viewport: MetalViewport, viewpor
     viewport_position = Transform.get_position(viewport_world_matrix)
     
     @for_each
-    def draw_shapes(_: World, __: Entity, shape: Shape, shape_transform: Transform, renderer: ShapeRenderer):
+    def draw_shapes(world: World, __: Entity, shape: Shape, shape_transform: Transform, renderer: ShapeRenderer):
         world_matrix = shape_transform.get_world_matrix()
         
         # Convert edges to ordered vertices
@@ -162,5 +157,12 @@ def draw_shape_system(world: World, __: Entity, viewport: MetalViewport, viewpor
     draw_shapes(world)
     
     encoder.endEncoding()
-    command_buffer.presentDrawable_(drawable)
-    command_buffer.commit()
+    
+    if is_export_mode:
+        # Export mode: commit and wait for completion
+        command_buffer.commit()
+        command_buffer.waitUntilCompleted()
+    else:
+        # Interactive mode: present to screen
+        command_buffer.presentDrawable_(drawable)
+        command_buffer.commit()

@@ -1,65 +1,108 @@
+from functools import partial
 from importlib import import_module
+from os import wait
+import threading
+from time import sleep, time
+from typing import Callable
+
 from application import cleaner, physics
 from application.duration import duration_system, Duration
-from application.metal import display_metal
 from application import collisions
 from application.collisions.components import CollisionMatrix
 from application.transform import save_transform_state
-from application import metal
-from application.stats.systems import  deal_damage
+from application.stats.systems import deal_damage
+
+from color import Color
+from infrastructure import cleanup
+import rendering as metal
+
 from ecs.entity import Entity
-from ecs.system import SystemsGroup
+from ecs.system import SystemsGroup, factory
 from ecs.world import World
+
 from infrastructure.config import get_config
+
 from scenarios.types import Scenario
 
 
-_collision_layers = [
-    ('default', 'default')
-]
+_collision_layers = [("default", "default")]
 
-def _get_base_scenario(config = get_config()) -> Scenario:
-    resolution = (config['width'], config['height'])
-    virtual_size = (config['virtual_width'], config['virtual_height'])
-    mtk_system, viewport = display_metal.create_interactive_system(resolution, virtual_size)
+def bake_collision_matrix(world: World):
+    e = Entity("collisions")
+    e.add_component(CollisionMatrix(_collision_layers))
+    world.add(e)
 
-    def bake(world: World):
-        world.add(viewport)
-        collision_matrix_entity = Entity('collision_matrix')
-        collision_matrix_entity.add_component(CollisionMatrix(_collision_layers))
-        world.add(collision_matrix_entity) 
+@factory
+def bake_duration(config=get_config()):
+    duration = config['duration']
 
-        duration: float | None = config['duration']
-        if duration:
-            duration_entity = Entity('duration')
-            duration_entity.add_component(Duration(duration))
-            world.add(duration_entity)
+    def bake(duration: float, world: World):
+        e = Entity("duration")
+        e.add_component(Duration(duration))
+        world.add(e)
 
-    return Scenario(
-        bake,
-        SystemsGroup(
+    if duration:
+        return partial(bake, duration)
+
+def create_pool(create: Callable):
+    lock = threading.Lock()
+    buffers = []
+    rented_count = [0]
+    
+    def release(buffer):
+        with lock:
+            buffers.append(buffer)
+            rented_count[0] -= 1
+
+    def rent():
+        with lock:
+            if len(buffers) == 0:
+                result = create()
+            else:
+                result = buffers.pop(0)
+            rented_count[0] += 1
+            return result
+    
+    @cleanup.wait
+    def finish():
+        with lock:
+            return rented_count[0] > 0
+    cleanup.dependencies.append(finish)
+
+    return rent, release
+
+def get_base_scenario(config=get_config()) -> Scenario:
+    metal_core = metal.get_scenario()
+    metal_back = (
+            metal.get_export(config['width'], config['height'], config['fps'], config['output'], create_pool) 
+            if config['output'] 
+            else metal.get_interactive(config['width'], config['height'], Color(0.0, 0.0, 0.05))
+    )
+    application_scenario = Scenario(
+        bake=SystemsGroup(
+            [bake_duration, bake_collision_matrix],
+            [],
+            []
+        ),
+        simulation=SystemsGroup(
             [duration_system, save_transform_state],
             [*collisions.export, *physics.systems],
             [deal_damage, cleaner.system],
         ),
-        SystemsGroup(
-            [metal.handle_events],
-            [
-                metal.draw_shape_system
-            ],
-            [
-                # (
-                #     create_export_system(writer_fn(), (config['width'], config['height']))
-                #     if config.get("output") is not None
-                #     else create_interactive_system((config['width'], config['height']))
-                # )
-                mtk_system
-            ],
+        rendering=SystemsGroup(
+            [],
+            [],
+            [],
         ),
     )
 
+    return (metal_core
+        .merge(metal_back)
+        .merge(application_scenario)
+    )
 
-def get_scenario(base=_get_base_scenario(), config=get_config()) -> Scenario:
+
+def get_scenario(base=get_base_scenario(), config=get_config()) -> Scenario:
     module = import_module(f"scenarios.{config['scenario']}")
     scenario: Scenario = module.scenario
     return base.merge(scenario)

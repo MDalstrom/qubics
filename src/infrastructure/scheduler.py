@@ -13,11 +13,11 @@ def get_loop(
     clock = get_clock()
 ):
     def simulation_pass():
-        scenario.simulation_group(world)
+        scenario.simulation(world)
 
     def rendering_pass(alpha: float):
         world.alpha = alpha
-        scenario.rendering_group(world)
+        scenario.rendering(world)
    
     scenario.bake(world)
     return partial(

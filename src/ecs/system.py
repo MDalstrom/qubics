@@ -35,6 +35,12 @@ class SystemsGroup:
         system(world)
 
 
+def factory(factory_fn: Callable[[], System | None]) -> System:
+    def nop(world: World): ...
+    
+    result: System | None = factory_fn()
+    return result if result else nop
+
 def for_each(entity_fn: Callable) -> System:
     sig = inspect.signature(entity_fn)
     params = list(sig.parameters.values())[2:]  # skip world, entity

@@ -11,9 +11,11 @@ from ecs.world import World
 
 @dataclass
 class MetalViewport:
-    view: MetalKit.MTKView
+    view: MetalKit.MTKView | None
     resolution: tuple[int, int]
-    size: tuple[int, int]  # Virtual size for rendering
+    size: tuple[int, int]
+    device: object = None
+    offscreen_texture: object = None
 
 
 class MetalViewDelegate(Cocoa.NSObject):
@@ -43,26 +45,6 @@ class MetalViewDelegate(Cocoa.NSObject):
         command_buffer.commit()
 
 
-def handle_events(world: World):
-    app = Cocoa.NSApplication.sharedApplication()
-    while True:
-        event = app.nextEventMatchingMask_untilDate_inMode_dequeue_(
-            Cocoa.NSEventMaskAny,
-            Cocoa.NSDate.distantPast(),
-            Cocoa.NSDefaultRunLoopMode,
-            True
-        )
-        if event is None:
-            break
-        
-        if event.type() == Cocoa.NSEventTypeKeyDown:
-            if event.keyCode() == 53:  # ESC key
-                raise KeyboardInterrupt
-        
-        app.sendEvent_(event)
-        app.updateWindows()
-
-
 def create_interactive_system(resolution: tuple[int, int], size: tuple[int, int]):
     device = Metal.MTLCreateSystemDefaultDevice()
     if device is None:
@@ -88,7 +70,7 @@ def create_interactive_system(resolution: tuple[int, int], size: tuple[int, int]
     
     delegate = MetalViewDelegate.alloc().init()
     metal_view.setDelegate_(delegate)
-    
+
     window.setContentView_(metal_view)
     window.makeKeyAndOrderFront_(None)
     app.activateIgnoringOtherApps_(True)
@@ -104,9 +86,58 @@ def create_interactive_system(resolution: tuple[int, int], size: tuple[int, int]
     return interactive_system, viewport_entity
 
 
-def create_export_system(writer, resolution: tuple[int, int]):
+def create_export_system(writer, resolution: tuple[int, int], size: tuple[int, int]):
+    """Create a system that renders frames offscreen and writes them to a video file."""
+    device = Metal.MTLCreateSystemDefaultDevice()
+    if device is None:
+        raise RuntimeError("Metal is not supported on this system")
+    
+    # Create offscreen texture for rendering
+    texture_descriptor = Metal.MTLTextureDescriptor.alloc().init()
+    texture_descriptor.setTextureType_(Metal.MTLTextureType2D)
+    texture_descriptor.setPixelFormat_(Metal.MTLPixelFormatBGRA8Unorm)
+    texture_descriptor.setWidth_(resolution[0])
+    texture_descriptor.setHeight_(resolution[1])
+    texture_descriptor.setUsage_(Metal.MTLTextureUsageRenderTarget | Metal.MTLTextureUsageShaderRead)
+    
+    offscreen_texture = device.newTextureWithDescriptor_(texture_descriptor)
+    
+    viewport_entity = Entity()
+    viewport_entity.add_component(MetalViewport(
+        view=None,
+        resolution=resolution,
+        size=size,
+        device=device,
+        offscreen_texture=offscreen_texture
+    ))
+    viewport_entity.add_component(Transform(x=0, y=0))
+    
     @for_each
-    def export_system(_: World, __: Entity, viewport: MetalViewport, transform: Transform):
-        pass
-    return export_system
+    def export_system(_: World, __: Entity, viewport: MetalViewport):
+        if viewport.view is not None:
+            return
+        
+        # Read pixels from texture
+        width = resolution[0]
+        height = resolution[1]
+        bytes_per_row = width * 4
+        region = Metal.MTLRegionMake2D(0, 0, width, height)
+        
+        import array
+        pixel_data = array.array('B', [0] * (bytes_per_row * height))
+        
+        viewport.offscreen_texture.getBytes_bytesPerRow_fromRegion_mipmapLevel_(
+            pixel_data,
+            bytes_per_row,
+            region,
+            0
+        )
+        
+        import numpy as np
+        bgra_array = np.frombuffer(pixel_data, dtype=np.uint8).reshape((height, width, 4))
+        rgb_array = bgra_array[:, :, [2, 1, 0]]
+        
+        writer.send(rgb_array.tobytes())
+    
+    return export_system, viewport_entity
 

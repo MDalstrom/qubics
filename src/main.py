@@ -1,5 +1,6 @@
 import sys
 from typing import Callable
+from infrastructure import cleanup
 from watch import FileWatcher
 import rreload
 from logging import Logger
@@ -7,8 +8,6 @@ from logging import Logger
 def get_loop():
     import infrastructure.scheduler as scheduler
     return scheduler.get_loop()
-
-
 
 logger = Logger('main')
 
@@ -48,3 +47,6 @@ while running:
         accumulator = loop(accumulator)
     except KeyboardInterrupt:
         running = False
+
+print("cleaning up...")
+cleanup.finish()

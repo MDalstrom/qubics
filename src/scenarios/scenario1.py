@@ -1,4 +1,4 @@
-from application.metal.metal_shape import ShapeRenderer
+from rendering.metal_shape import ShapeRenderer
 from application.collisions.n import Shape
 from application.collisions.components import Collider
 from application.math import Vector, identity_corners
@@ -43,4 +43,4 @@ def bake(world: World):
     box.add_component(Damping(linear=0, angular=0.5))
     world.add(box)
 
-scenario = Scenario(bake, SystemsGroup([], [], []), SystemsGroup([], [], []))
+scenario = Scenario(SystemsGroup([], [bake], []), SystemsGroup([], [], []), SystemsGroup([], [], []))
