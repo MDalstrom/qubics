@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Any
 from pathlib import Path
 
-import MetalKit
 import Cocoa
 import Metal
 import Foundation
@@ -48,37 +47,6 @@ def create_device():
     device = Metal.MTLCreateSystemDefaultDevice()
     return device
 
-def create_view(
-    device: Metal.MTLDevice,
-    delegate: MetalKit.MTKViewDelegate,
-    *,
-    rect: Cocoa.NSMakeRect,
-    background_color: Metal.MTLClearColorMake,
-):
-    app = Cocoa.NSApplication.sharedApplication()
-    app.setActivationPolicy_(Cocoa.NSApplicationActivationPolicyRegular)
-
-    window = Cocoa.NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-        rect,
-        Cocoa.NSWindowStyleMaskTitled | Cocoa.NSClosableWindowMask,
-        Cocoa.NSBackingStoreBuffered,
-        False
-    )
-    window.setTitle_("Metal Viewport")
-    window.center()
-
-    view = MetalKit.MTKView.alloc().initWithFrame_device_(
-        rect,
-        device
-    )
-    view.setClearColor_(background_color)
-    view.setDelegate_(delegate)
-
-    window.setContentView_(view)
-    window.makeKeyAndOrderFront_(None)
-    app.activateIgnoringOtherApps_(True)
-
-    return view
 
 def create_library(
     device: Metal.MTLDevice

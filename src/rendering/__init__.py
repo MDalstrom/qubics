@@ -10,9 +10,9 @@ from ecs.system import SystemsGroup
 
 from .handle_events import handle_events
 from .shape import draw_shape_system
-from .interactive import create as create_interactive
-from .export import create as create_export
-from .factory import create, create_delegate, create_device, create_library, create_pipeline, create_view
+from .interactive import create as create_interactive, create_view
+from .export import create as create_export, create_texture
+from .factory import create, create_delegate, create_device, create_library, create_pipeline
 
 device = create_device()
 
@@ -42,26 +42,19 @@ def get_interactive(
     return create_interactive(view)
 
 def get_export(
-    width: int, height: int, fps: int, path: str, create_pool: Callable
+    width: int, height: int, 
+    fps: int, 
+    path: str, 
+    color: Color,
+    create_pool: Callable
 ):
-    from infrastructure import cleanup
-    
     recorder = FFmpegRecorder(width, height, fps, path)
+
+    from infrastructure import cleanup
+    cleanup.dependencies.append(recorder.finish)
     
-    # Register cleanup handler to finish FFmpeg process
-    def cleanup_recorder():
-        print("Finishing recorder...")
-        recorder.finish()
-    cleanup.dependencies.append(cleanup_recorder)
-    
-    descriptor = Metal.MTLTextureDescriptor.alloc().init()
-    descriptor.setTextureType_(Metal.MTLTextureType2D)
-    descriptor.setPixelFormat_(Metal.MTLPixelFormatBGRA8Unorm)
-    descriptor.setWidth_(width)
-    descriptor.setHeight_(height)
-    descriptor.setUsage_(Metal.MTLTextureUsageRenderTarget | Metal.MTLTextureUsageShaderRead)
-    texture = device.newTextureWithDescriptor_(descriptor)
-    return create_export(texture, device, recorder, create_pool,  width=width, height=height)
+    texture = create_texture(device, width=width, height=height)
+    return create_export(texture, device, recorder, create_pool, width=width, height=height, background_color=color)
     
 def get_scenario():
     base = create(device, pipeline)

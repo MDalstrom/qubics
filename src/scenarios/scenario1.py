@@ -1,4 +1,5 @@
-from rendering.metal_shape import ShapeRenderer
+from color import Color
+from rendering.shape import ShapeRenderer
 from application.collisions.n import Shape
 from application.collisions.components import Collider
 from application.math import Vector, identity_corners
@@ -27,7 +28,7 @@ def bake(world: World):
     edges = [(vertices[i], vertices[(i + 1) % len(vertices)]) for i in range(len(vertices))]
     sphere.add_component(Shape(edges=edges))
     sphere.add_component(Collider())
-    sphere.add_component(ShapeRenderer((1.0, 0.1, 0.8, 1)))
+    sphere.add_component(ShapeRenderer(Color(1.0, 0.1, 0.8)))
     sphere.add_component(Velocity(linear=Vector(0, 0)))
     sphere.add_component(Body(mass=1000, inertia=1000000, restitution=0, friction=1.0))
     world.add(sphere)
@@ -36,7 +37,7 @@ def bake(world: World):
     box.add_component(Transform(0, 900, 0, 120, 120))
     box.add_component(Shape(edges=[(identity_corners[i], identity_corners[(i + 1) % len(identity_corners)]) for i in range(len(identity_corners))]))
     box.add_component(Collider())
-    box.add_component(ShapeRenderer((1, 0.5, 1, 1)))
+    box.add_component(ShapeRenderer(Color(1, 0.5, 1)))
     box.add_component(Velocity(linear=Vector(0, -100)))
     box.add_component(Acceleration(x=0, y=-980.0))
     box.add_component(Body(mass=1, inertia=10000, restitution=0, friction=0.0))

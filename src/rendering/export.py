@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import Callable
-import ctypes
-import threading
 import Metal
 
+from color import Color
 from ecs.entity import Entity
 from ecs.system import SystemsGroup, for_each
 from ecs.world import World
@@ -12,6 +11,16 @@ from scenarios.types import Scenario
 
 from .factory import RenderingState
 
+def create_texture(device: Metal.MTLDevice, *, width: int, height: int):
+    descriptor = Metal.MTLTextureDescriptor.alloc().init()
+    descriptor.setTextureType_(Metal.MTLTextureType2D)
+    descriptor.setPixelFormat_(Metal.MTLPixelFormatBGRA8Unorm)
+    descriptor.setWidth_(width)
+    descriptor.setHeight_(height)
+    descriptor.setUsage_(Metal.MTLTextureUsageRenderTarget | Metal.MTLTextureUsageShaderRead)
+    texture = device.newTextureWithDescriptor_(descriptor)
+    return texture
+
 def create(
     texture: Metal.MTLTexture,
     device: Metal.MTLDeivce,
@@ -19,6 +28,7 @@ def create(
     create_pool: Callable,
     *,
     width: int, height: int,
+    background_color: Color
 ):
     recorder.start()
 
@@ -33,7 +43,7 @@ def create(
             Metal.MTLResourceStorageModeShared
         )
     rent_buffer, release_buffer = create_pool(create_buffer)
-
+    
     @for_each
     def set_descriptor(_: World, __: Entity, state: RenderingState):
         descriptor = Metal.MTLRenderPassDescriptor.alloc().init()
@@ -41,7 +51,7 @@ def create(
         color_attachment.setTexture_(texture)
         color_attachment.setLoadAction_(Metal.MTLLoadActionClear)
         color_attachment.setStoreAction_(Metal.MTLStoreActionStore)
-        color_attachment.setClearColor_(Metal.MTLClearColorMake(0.1, 0.1, 0.15, 1.0))
+        color_attachment.setClearColor_(Metal.MTLClearColorMake(background_color.r, background_color.g, background_color.b, background_color.a))
         
         state.descriptor = descriptor
 
@@ -63,22 +73,41 @@ def create(
         blit.endEncoding()
         
         def on_complete(_):
-            contents = buffer.contents()
-            buffer_total_bytes = bytes_per_row * height
-            buffer_data = contents.as_buffer(buffer_total_bytes)
-            
-            if bytes_per_row != width * 4:
-                rows = []
-                for y in range(height):
-                    row_start = y * bytes_per_row
-                    row_end = row_start + (width * 4)
-                    rows.append(buffer_data[row_start:row_end])
-                data = b''.join(rows)
-            else:
-                data = buffer_data
-            
-            recorder.write_frame(data)
-            release_buffer(buffer)
+            try:
+                contents = buffer.contents()
+                buffer_total_bytes = bytes_per_row * height
+                buffer_data = contents.as_buffer(buffer_total_bytes)
+                
+                # Debug: check actual buffer size
+                actual_size = len(buffer_data)
+                if actual_size != buffer_total_bytes:
+                    print(f"[ERROR] Buffer size mismatch! Expected {buffer_total_bytes}, got {actual_size}")
+                
+                if bytes_per_row != width * 4:
+                    rows = []
+                    for y in range(height):
+                        row_start = y * bytes_per_row
+                        row_end = row_start + (width * 4)
+                        if row_end > actual_size:
+                            print(f"[ERROR] Row {y} out of bounds: {row_end} > {actual_size}")
+                            break
+                        rows.append(buffer_data[row_start:row_end])
+                    data = b''.join(rows)
+                else:
+                    data = buffer_data
+                
+                expected_frame_size = width * height * 4
+                if len(data) != expected_frame_size:
+                    print(f"[ERROR] Frame size wrong! Expected {expected_frame_size}, got {len(data)}")
+                
+                if not recorder.write_frame(data):
+                    print(f"[ERROR] Failed to write frame, FFmpeg may have exited")
+            except Exception as e:
+                import traceback
+                print(f"[ERROR] Frame callback failed: {e}")
+                traceback.print_exc()
+            finally:
+                release_buffer(buffer)
 
         state.buffer.addCompletedHandler_(on_complete)
         state.buffer.commit()

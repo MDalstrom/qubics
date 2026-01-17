@@ -74,7 +74,7 @@ def create_pool(create: Callable):
 def get_base_scenario(config=get_config()) -> Scenario:
     metal_core = metal.get_scenario()
     metal_back = (
-            metal.get_export(config['width'], config['height'], config['fps'], config['output'], create_pool) 
+            metal.get_export(config['width'], config['height'], config['fps'], config['output'], Color(0.0, 0.0, 0.0, 0.05), create_pool)
             if config['output'] 
             else metal.get_interactive(config['width'], config['height'], Color(0.0, 0.0, 0.05))
     )

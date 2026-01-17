@@ -21,8 +21,8 @@ class FFmpegRecorder:
             "-video_size", f"{self.width}x{self.height}",
             "-framerate", str(self.fps),
             "-i", "-",
-            "-c:v", "libx264",
-            "-preset", "fast",
+            "-c:v", "h264_videotoolbox",
+            "-b:v", "10M",
             "-pix_fmt", "yuv420p",
             self.output_path,
         ]
@@ -32,13 +32,13 @@ class FFmpegRecorder:
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            bufsize=0,  # unbuffered
+            bufsize=0,
         )
 
     def write_frame(self, data: bytes):
-        assert self.process
-        assert self.process.stdin
-        
+        if not self.process or not self.process.stdin:
+            return False
+            
         expected_size = self.width * self.height * 4
         if len(data) != expected_size:
             print(f"Warning: Frame size mismatch! Expected {expected_size}, got {len(data)}")
@@ -46,20 +46,40 @@ class FFmpegRecorder:
 
         try:
             self.process.stdin.write(data)
-            self.process.stdin.flush()  # Important!
+            self.process.stdin.flush()
             return True
-        except BrokenPipeError:
-            print("Broken pipe! FFmpeg stderr:")
-            assert self.process.stderr
-            stderr = self.process.stderr.read()
-            print(stderr.decode())
+        except (BrokenPipeError, ValueError) as e:
+            print(f"Broken pipe! Error: {e}")
+            if self.process.stderr:
+                stderr = self.process.stderr.read()
+                print("FFmpeg stderr:")
+                print(stderr.decode())
             return False
 
     def finish(self):
-        assert self.process
-        assert self.process.stdin
-
-        self.process.stdin.close()
-        self.process.wait()
+        if not self.process:
+            return
+            
+        if self.process.stdin:
+            try:
+                # Flush any remaining data
+                self.process.stdin.flush()
+                # Close stdin to signal end of input
+                self.process.stdin.close()
+            except Exception as e:
+                print(f"[WARNING] Error closing stdin: {e}")
+        
+        # Wait for FFmpeg to finish encoding
+        try:
+            returncode = self.process.wait(timeout=10)
+            if returncode != 0:
+                print(f"[WARNING] FFmpeg exited with code {returncode}")
+                if self.process.stderr:
+                    stderr = self.process.stderr.read()
+                    print("FFmpeg stderr:", stderr.decode())
+        except Exception as e:
+            print(f"[ERROR] Error waiting for FFmpeg: {e}")
+            self.process.kill()
+        
         self.process = None
 
