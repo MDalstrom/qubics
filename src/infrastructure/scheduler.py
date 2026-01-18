@@ -25,6 +25,6 @@ def get_loop(
         tick,
         simulation_pass,
         rendering_pass,
-        config['sim_dt'],
+        config['timedelta'],
         clock
     )

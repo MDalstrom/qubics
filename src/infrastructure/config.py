@@ -4,7 +4,8 @@ from color import Color
 _config = {
     "bg_color": (255, 255, 255),
     "fps": 60,
-    "sim_dt": 1.0 / 60.0,
+    "timedelta": 1.0 / 60.0,
+    "timescale": 0.25,
     "scenario": "scenario1",
     "virtual_width": 2700,
     "virtual_height": 4800,
