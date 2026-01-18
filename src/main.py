@@ -4,10 +4,8 @@ from infrastructure import cleanup
 from watch import FileWatcher
 import rreload
 from logging import Logger
+import infrastructure.scheduler as scheduler
 
-def get_loop():
-    import infrastructure.scheduler as scheduler
-    return scheduler.get_loop()
 
 logger = Logger('main')
 
@@ -26,7 +24,7 @@ if "--watch=true" in sys.argv:
                 print(e)
                 current = lambda *a, **kw: fallback
         if not current:
-            current = get_loop()
+            current = scheduler.get_loop()
         try:
             return current(*args, **kwargs)
         except KeyboardInterrupt:
@@ -38,7 +36,7 @@ if "--watch=true" in sys.argv:
 
     loop = wrap
 else:
-    loop = get_loop()
+    loop = scheduler.get_loop()
 
 running = True
 accumulator = 0.0

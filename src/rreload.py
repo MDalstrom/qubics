@@ -2,11 +2,18 @@ import importlib
 from pathlib import Path
 import sys
 
+BLACKLIST = {
+    'infrastructure.rendering',
+}
+
 def deep_reload(source: str):
     PROJECT_ROOT = Path(source).parent.resolve()
-    for _, m in list(sys.modules.items()):
+    for module_name, m in list(sys.modules.items()):
         if m and hasattr(m, "__file__") and m.__file__:
             if m.__file__ is source:
+                continue
+
+            if any(blacklisted in module_name for blacklisted in BLACKLIST):
                 continue
 
             m_path = Path(m.__file__).resolve()

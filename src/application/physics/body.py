@@ -1,6 +1,3 @@
-from math import tan
-
-from numpy import cross
 from application.collisions.components import Collider
 from application.math import clamp
 from application.physics.velocity import Velocity

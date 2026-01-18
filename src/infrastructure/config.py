@@ -1,11 +1,15 @@
+from color import Color
+
+
 _config = {
     "bg_color": (255, 255, 255),
     "fps": 60,
     "sim_dt": 1.0 / 60.0,
     "scenario": "scenario1",
-    "virtual_width": 1800,
-    "virtual_height": 3200,
-    "debug": False
+    "virtual_width": 2700,
+    "virtual_height": 4800,
+    "debug": False,
+    "background-color": Color(0, 0, 0, 1),
 }
 
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from application.collisions.n import Shape
 from color import Color
-from .factory import RenderingState
+from .state import RenderingState
 from application.transform import Transform
 from ecs.entity import Entity
 from ecs.system import for_each
@@ -13,7 +13,6 @@ import array
 @dataclass
 class ShapeRenderer:
     color: Color
-
 
 @for_each
 def draw_shape_system(

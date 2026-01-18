@@ -21,7 +21,7 @@ import math
 def bake(world: World):
     sphere = Entity('sphere')
     sphere.add_component(Transform(0, 0, 0, 400, 400))
-    count = 64
+    count = 128
     iis = [i / (count - 1) for i in range(count)]
     pis = [2 * math.pi * i for i in iis] 
     vertices = [Vector(math.cos(x), math.sin(x)) for x in pis]
@@ -43,5 +43,4 @@ def bake(world: World):
     box.add_component(Body(mass=1, inertia=10000, restitution=0, friction=0.0))
     box.add_component(Damping(linear=0, angular=0.5))
     world.add(box)
-
 scenario = Scenario(SystemsGroup([], [bake], []), SystemsGroup([], [], []), SystemsGroup([], [], []))

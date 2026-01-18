@@ -1,4 +1,3 @@
-from os import stat
 from ecs.entity import Entity
 from ecs.system import for_each
 from ecs.world import World

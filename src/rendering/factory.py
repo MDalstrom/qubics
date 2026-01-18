@@ -1,18 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Any
 from pathlib import Path
 
 import Cocoa
 import Metal
+import MetalKit
 import Foundation
 import objc
-
-from application.transform import Transform
-from ecs.entity import Entity
-from ecs.system import for_each, SystemsGroup
-from ecs.world import World
-from scenarios.types import Scenario
 
 
 def create_delegate():
@@ -27,20 +20,7 @@ def create_delegate():
             pass
 
         def drawInMTKView_(self, view):
-            drawable = view.currentDrawable()
-            if drawable is None:
-                return
-
-            descriptor = view.currentRenderPassDescriptor()
-            if descriptor is None:
-                return
-
-            command_queue = view.device().newCommandQueue()
-            command_buffer = command_queue.commandBuffer()
-            encoder = command_buffer.renderCommandEncoderWithDescriptor_(descriptor)
-            encoder.endEncoding()
-            command_buffer.presentDrawable_(drawable)
-            command_buffer.commit()
+            pass
 
     return Delegate()
 
@@ -57,6 +37,51 @@ def create_library(device: Metal.MTLDevice):
     library, error = device.newLibraryWithURL_error_(url, None)
     assert not error
     return library
+
+
+def create_view(
+    device: Metal.MTLDevice,
+    delegate: MetalKit.MTKViewDelegate,
+    rect: tuple,
+    background_color: tuple,
+):
+    rect_obj = Cocoa.NSMakeRect(*rect)
+    color_obj = Metal.MTLClearColorMake(*background_color)
+    
+    app = Cocoa.NSApplication.sharedApplication()
+    app.setActivationPolicy_(Cocoa.NSApplicationActivationPolicyRegular)
+
+    window = Cocoa.NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+        rect_obj,
+        Cocoa.NSWindowStyleMaskTitled | Cocoa.NSClosableWindowMask,
+        Cocoa.NSBackingStoreBuffered,
+        False,
+    )
+    window.setTitle_("Metal Viewport")
+    window.center()
+
+    view = MetalKit.MTKView.alloc().initWithFrame_device_(rect_obj, device)
+    view.setClearColor_(color_obj)
+    view.setDelegate_(delegate)
+
+    window.setContentView_(view)
+    window.makeKeyAndOrderFront_(None)
+    app.activateIgnoringOtherApps_(True)
+
+    return view
+
+
+def create_texture(device: Metal.MTLDevice, *, width: int, height: int):
+    descriptor = Metal.MTLTextureDescriptor.alloc().init()
+    descriptor.setTextureType_(Metal.MTLTextureType2D)
+    descriptor.setPixelFormat_(Metal.MTLPixelFormatBGRA8Unorm)
+    descriptor.setWidth_(width)
+    descriptor.setHeight_(height)
+    descriptor.setUsage_(
+        Metal.MTLTextureUsageRenderTarget | Metal.MTLTextureUsageShaderRead
+    )
+    texture = device.newTextureWithDescriptor_(descriptor)
+    return texture
 
 
 def create_pipeline(
@@ -93,43 +118,3 @@ def create_pipeline(
     return state
 
 
-@dataclass
-class RenderingState:
-    device: Metal.MTLDevice
-    queue: Metal.MTLCommandQueue
-    buffer: Metal.MTLCommandBuffer
-    encoder: Metal.MTLRenderCommandEncoder
-    descriptor: Any
-
-
-def create(
-    device: Metal.MTLDevice, pipeline_state: Metal.MTLRenderingPipelineState
-) -> Scenario:
-
-    def bake(world: World):
-        queue = device.newCommandQueue()
-
-        e = Entity("RenderingState")
-        e.add_component(RenderingState(device, queue, None, None, None))
-        e.add_component(Transform(0, 0, scale_x=900, scale_y=1600))
-        world.add(e)
-
-    @for_each
-    def set_encoder(_: World, __: Entity, state: RenderingState):
-        buffer = state.queue.commandBuffer()
-        encoder = buffer.renderCommandEncoderWithDescriptor_(state.descriptor)
-        encoder.setRenderPipelineState_(pipeline_state)
-
-        state.buffer = buffer
-        state.encoder = encoder
-
-    @for_each
-    def clean_encoder(_: World, __: Entity, state: RenderingState):
-        state.encoder.endEncoding()
-        state.encoder = None
-
-    return Scenario(
-        bake=SystemsGroup([], [bake], []),
-        simulation=SystemsGroup([], [], []),
-        rendering=SystemsGroup([], [set_encoder], [clean_encoder]),
-    )

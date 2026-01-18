@@ -9,20 +9,7 @@ from ecs.world import World
 from recorder import FFmpegRecorder
 from scenarios.types import Scenario
 
-from .factory import RenderingState
-
-
-def create_texture(device: Metal.MTLDevice, *, width: int, height: int):
-    descriptor = Metal.MTLTextureDescriptor.alloc().init()
-    descriptor.setTextureType_(Metal.MTLTextureType2D)
-    descriptor.setPixelFormat_(Metal.MTLPixelFormatBGRA8Unorm)
-    descriptor.setWidth_(width)
-    descriptor.setHeight_(height)
-    descriptor.setUsage_(
-        Metal.MTLTextureUsageRenderTarget | Metal.MTLTextureUsageShaderRead
-    )
-    texture = device.newTextureWithDescriptor_(descriptor)
-    return texture
+from .state import RenderingState
 
 
 def create(

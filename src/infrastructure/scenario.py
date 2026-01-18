@@ -1,9 +1,10 @@
 from functools import partial
 from importlib import import_module
-from os import wait
-import threading
-from time import sleep, time
-from typing import Callable
+
+from infrastructure import cleanup
+from rendering.export import create as create_export
+from rendering.interactive import create as create_interactive
+from rendering.scenario import create as create_core
 
 from application import cleaner, physics
 from application.duration import duration_system, Duration
@@ -12,73 +13,85 @@ from application.collisions.components import CollisionMatrix
 from application.transform import save_transform_state
 from application.stats.systems import deal_damage
 
-from color import Color
-from infrastructure import cleanup
-import rendering as metal
-
 from ecs.entity import Entity
 from ecs.system import SystemsGroup, factory
 from ecs.world import World
-
-from infrastructure.config import get_config
-
+from recorder import FFmpegRecorder
 from scenarios.types import Scenario
 
+from .config import get_config
+from .rendering import (
+    get_device, 
+    get_pipeline,
+    get_texture,
+    get_view,
+)
 
-_collision_layers = [("default", "default")]
 
-def bake_collision_matrix(world: World):
-    e = Entity("collisions")
-    e.add_component(CollisionMatrix(_collision_layers))
-    world.add(e)
+def get_rendering_scenario(
+    device = get_device(),
+    pipeline = get_pipeline(),
+    config = get_config(),
+) -> Scenario:
+    return create_core(
+        device, pipeline,
+        width=config['virtual_width'], height=config['virtual_height']
+    )
 
-@factory
-def bake_duration(config=get_config()):
-    duration = config['duration']
+def get_recorder(
+    width: int, height: int, fps: int, path: str
+):
+    recorder = FFmpegRecorder(width, height, fps, path)
+    cleanup.dependencies.append(recorder.finish)
+    return recorder 
 
-    def bake(duration: float, world: World):
-        e = Entity("duration")
-        e.add_component(Duration(duration))
+def get_backend_scenario(
+    config = get_config(),
+    device = get_device(),
+    texture_fn = get_texture,
+    recorder_fn = get_recorder,
+    view_fn = get_view,
+    create_pool = cleanup.create_pool,
+) -> Scenario:
+    path = config['output']
+    if path:
+        width = config['width']
+        height = config['height']
+        fps = config['fps']
+        return create_export(
+            texture_fn(),
+            device,
+            recorder_fn(width, height, fps, path),
+            create_pool,
+            width=width, height=height,
+            background_color=config['background-color'],
+        )
+    else:
+        return create_interactive(
+            view_fn()
+        )
+
+def get_application_scenario() -> Scenario:
+    _collision_layers = [("default", "default")]
+
+    def bake_collision_matrix(world: World):
+        e = Entity("collisions")
+        e.add_component(CollisionMatrix(_collision_layers))
         world.add(e)
 
-    if duration:
-        return partial(bake, duration)
+    @factory
+    def bake_duration(config=get_config()):
+        duration = config['duration']
 
-def create_pool(create: Callable):
-    lock = threading.Lock()
-    buffers = []
-    rented_count = [0]
-    
-    def release(buffer):
-        with lock:
-            buffers.append(buffer)
-            rented_count[0] -= 1
+        def bake(duration: float, world: World):
+            e = Entity("duration")
+            e.add_component(Duration(duration))
+            world.add(e)
 
-    def rent():
-        with lock:
-            if len(buffers) == 0:
-                result = create()
-            else:
-                result = buffers.pop(0)
-            rented_count[0] += 1
-            return result
-    
-    @cleanup.wait
-    def finish():
-        with lock:
-            return rented_count[0] > 0
-    cleanup.dependencies.append(finish)
+        if duration:
+            return partial(bake, duration)
 
-    return rent, release
-
-def get_base_scenario(config=get_config()) -> Scenario:
-    metal_core = metal.get_scenario()
-    metal_back = (
-            metal.get_export(config['width'], config['height'], config['fps'], config['output'], Color(0.0, 0.0, 0.0, 0.05), create_pool)
-            if config['output'] 
-            else metal.get_interactive(config['width'], config['height'], Color(0.0, 0.0, 0.05))
-    )
-    application_scenario = Scenario(
+    return Scenario(
         bake=SystemsGroup(
             [bake_duration, bake_collision_matrix],
             [],
@@ -96,13 +109,16 @@ def get_base_scenario(config=get_config()) -> Scenario:
         ),
     )
 
-    return (metal_core
-        .merge(metal_back)
-        .merge(application_scenario)
-    )
-
-
-def get_scenario(base=get_base_scenario(), config=get_config()) -> Scenario:
+def get_scenario(
+    core=get_rendering_scenario(),
+    backend=get_backend_scenario(),
+    application=get_application_scenario(), 
+    config=get_config()
+) -> Scenario:
     module = import_module(f"scenarios.{config['scenario']}")
     scenario: Scenario = module.scenario
-    return base.merge(scenario)
+    return (core
+        .merge(backend)
+        .merge(application)
+        .merge(scenario)
+    )
