@@ -1,12 +1,15 @@
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+import rreload
+
 class ChangeHandler(FileSystemEventHandler):
     def __init__(self):
         self.changed = False
 
     def on_any_event(self, event):
         if event.src_path.endswith('.py'):
+            rreload(__file__)
             self.changed = True
 
 

@@ -1,8 +1,9 @@
+from threading import Lock
+from typing import Callable
 from rendering.factory import (
     create_device,
     create_library,
     create_pipeline,
-    create_delegate,
     create_view,
     create_texture,
 )
@@ -29,18 +30,32 @@ def get_pipeline():
         vertex_fn_name="vertex_main"
     )
 
-@singleton
-def get_delegate():
-    return create_delegate()
+def fallback_loop(_: float): return 0.0
+def wrap_catch(fn):
+    def inner(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except BaseException as e:
+            import traceback
+            traceback.print_exception(e)
+            raise e
+    return inner
+loop_dispatcher = [fallback_loop]
+loop_lock = Lock()
+def set_dispatched(fn: Callable):
+    with loop_lock:
+        loop_dispatcher[0] = wrap_catch(fn)
+def call_dispatched(*args, **kwargs):
+    with loop_lock:
+        return loop_dispatcher[0](*args, **kwargs)
 
 @singleton
 def get_view(config = get_config()):
     device = get_device()
-    delegate = get_delegate()
     rect = (0, 0, config['width'], config['height'])
     color = config['background-color']
     background_color = (color.r, color.g, color.b, color.a)
-    return create_view(device, delegate, rect, background_color)
+    return create_view(device, call_dispatched, rect, background_color)
 
 @singleton
 def get_texture(config = get_config()):

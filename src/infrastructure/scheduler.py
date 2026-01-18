@@ -5,9 +5,7 @@ from infrastructure.scenario import get_scenario
 from infrastructure.world import get_world
 from functools import partial
 
-
-def get_loop(
-
+def get_tick(
     scenario = get_scenario(),
     world = get_world(),
     config = get_config(),

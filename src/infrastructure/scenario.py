@@ -21,7 +21,7 @@ from scenarios.types import Scenario
 
 from .config import get_config
 from .rendering import (
-    get_device, 
+    get_device,
     get_pipeline,
     get_texture,
     get_view,
@@ -29,47 +29,46 @@ from .rendering import (
 
 
 def get_rendering_scenario(
-    device = get_device(),
-    pipeline = get_pipeline(),
-    config = get_config(),
+    device=get_device(),
+    pipeline=get_pipeline(),
+    config=get_config(),
 ) -> Scenario:
     return create_core(
-        device, pipeline,
-        width=config['virtual_width'], height=config['virtual_height']
+        device, pipeline, width=config["virtual_width"], height=config["virtual_height"]
     )
 
-def get_recorder(
-    width: int, height: int, fps: int, path: str
-):
+
+def get_recorder(width: int, height: int, fps: int, path: str):
     recorder = FFmpegRecorder(width, height, fps, path)
     cleanup.dependencies.append(recorder.finish)
-    return recorder 
+    return recorder
+
 
 def get_backend_scenario(
-    config = get_config(),
-    device = get_device(),
-    texture_fn = get_texture,
-    recorder_fn = get_recorder,
-    view_fn = get_view,
-    create_pool = cleanup.create_pool,
+    config=get_config(),
+    device=get_device(),
+    texture_fn=get_texture,
+    recorder_fn=get_recorder,
+    view_fn=get_view,
+    create_pool=cleanup.create_pool,
 ) -> Scenario:
-    path = config['output']
+    path = config["output"]
     if path:
-        width = config['width']
-        height = config['height']
-        fps = config['fps']
+        width = config["width"]
+        height = config["height"]
+        fps = config["fps"]
         return create_export(
             texture_fn(),
             device,
             recorder_fn(width, height, fps, path),
             create_pool,
-            width=width, height=height,
-            background_color=config['background-color'],
+            width=width,
+            height=height,
+            background_color=config["background-color"],
         )
     else:
-        return create_interactive(
-            view_fn()
-        )
+        return create_interactive(view_fn())
+
 
 def get_application_scenario() -> Scenario:
     _collision_layers = [("default", "default")]
@@ -81,7 +80,7 @@ def get_application_scenario() -> Scenario:
 
     @factory
     def bake_duration(config=get_config()):
-        duration = config['duration']
+        duration = config["duration"]
 
         def bake(duration: float, world: World):
             e = Entity("duration")
@@ -92,11 +91,7 @@ def get_application_scenario() -> Scenario:
             return partial(bake, duration)
 
     return Scenario(
-        bake=SystemsGroup(
-            [bake_duration, bake_collision_matrix],
-            [],
-            []
-        ),
+        bake=SystemsGroup([bake_duration, bake_collision_matrix], [], []),
         simulation=SystemsGroup(
             [duration_system, save_transform_state],
             [*collisions.export, *physics.systems],
@@ -109,16 +104,13 @@ def get_application_scenario() -> Scenario:
         ),
     )
 
+
 def get_scenario(
     core=get_rendering_scenario(),
     backend=get_backend_scenario(),
-    application=get_application_scenario(), 
-    config=get_config()
+    application=get_application_scenario(),
+    config=get_config(),
 ) -> Scenario:
     module = import_module(f"scenarios.{config['scenario']}")
     scenario: Scenario = module.scenario
-    return (core
-        .merge(backend)
-        .merge(application)
-        .merge(scenario)
-    )
+    return core.merge(backend).merge(application).merge(scenario)

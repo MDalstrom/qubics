@@ -18,7 +18,7 @@ def create(
     *,
     width: int, height: int
 ) -> Scenario:
-
+    
     def bake(world: World):
         queue = device.newCommandQueue()
 
@@ -32,7 +32,7 @@ def create(
         while True:
             event = app.nextEventMatchingMask_untilDate_inMode_dequeue_(
                 Cocoa.NSEventMaskAny,
-                Cocoa.NSDate.distantPast(),
+                None,
                 Cocoa.NSDefaultRunLoopMode,
                 True,
             )

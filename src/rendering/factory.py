@@ -1,34 +1,17 @@
 from __future__ import annotations
 from pathlib import Path
+from typing import Callable
 
 import Cocoa
 import Metal
 import MetalKit
 import Foundation
-import objc
-
-
-def create_delegate():
-    class Delegate(Cocoa.NSObject):
-        def init(self):
-            self = objc.super(Delegate, self).init()
-            if self is None:
-                return None
-            return self
-
-        def mtkView_drawableSizeWillChange_(self, view, size):
-            pass
-
-        def drawInMTKView_(self, view):
-            pass
-
-    return Delegate()
+from PyObjCTools.AppHelper import objc
 
 
 def create_device():
     device = Metal.MTLCreateSystemDefaultDevice()
     return device
-
 
 def create_library(device: Metal.MTLDevice):
     library_path = Path(__file__).resolve().parent.parent.parent
@@ -38,13 +21,22 @@ def create_library(device: Metal.MTLDevice):
     assert not error
     return library
 
-
 def create_view(
     device: Metal.MTLDevice,
-    delegate: MetalKit.MTKViewDelegate,
+    loop: Callable[[float], float],
     rect: tuple,
     background_color: tuple,
 ):
+    class ViewDelegate(Cocoa.NSObject):
+        def init(self):
+            self = objc.super(ViewDelegate, self).init()
+            self.acc = 0.0
+            return self
+        def mtkView_drawableSizeWillChange_(self, view, size):
+            pass
+        def drawInMTKView_(self, view):
+            self.acc = loop(self.acc)
+
     rect_obj = Cocoa.NSMakeRect(*rect)
     color_obj = Metal.MTLClearColorMake(*background_color)
     
@@ -53,16 +45,19 @@ def create_view(
 
     window = Cocoa.NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
         rect_obj,
-        Cocoa.NSWindowStyleMaskTitled | Cocoa.NSClosableWindowMask,
+        Cocoa.NSWindowStyleMaskTitled | Cocoa.NSWindowStyleMaskClosable | Cocoa.NSWindowStyleMaskResizable,
         Cocoa.NSBackingStoreBuffered,
         False,
     )
     window.setTitle_("Metal Viewport")
     window.center()
-
+    
     view = MetalKit.MTKView.alloc().initWithFrame_device_(rect_obj, device)
     view.setClearColor_(color_obj)
-    view.setDelegate_(delegate)
+    view_delegate = ViewDelegate.alloc().init()
+    view.setDelegate_(view_delegate)
+    global _py_delegate
+    _py_delegate = view_delegate
 
     window.setContentView_(view)
     window.makeKeyAndOrderFront_(None)

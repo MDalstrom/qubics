@@ -10,6 +10,7 @@ _config = {
     "virtual_height": 4800,
     "debug": False,
     "background-color": Color(0, 0, 0, 1),
+    "timescale": 0.1,
 }
 
 
