@@ -3,10 +3,11 @@ name = "qubics-py"
 version = "0.0.1"
 dependencies = [
   "watchdog",
-  "numpy",
   "pyobjc-framework-Metal",
   "pyobjc-framework-MetalKit",
   "pyobjc-framework-Cocoa",
+  "mlx",
+  "pydantic-settings"
 ]
 requires-python = ">=3.12"
 
@@ -17,5 +18,10 @@ exclude = ["build", "dist", ".venv", "__pycache__"]
 
 [[tool.pyright.executionEnvironments]]
 root = "src/rendering/"
+reportAttributeAccessIssue = false
+reportOptionalMemberAccess = false
+
+[[tool.pyright.executionEnvironments]]
+root = "src/alt/metal_deps.py"
 reportAttributeAccessIssue = false
 reportOptionalMemberAccess = false

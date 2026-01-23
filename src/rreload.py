@@ -4,6 +4,7 @@ import sys
 
 BLACKLIST = {
     'infrastructure.rendering',
+    'src.alt.metal_deps'
 }
 
 def deep_reload(source: str):
@@ -12,12 +13,12 @@ def deep_reload(source: str):
         if m and hasattr(m, "__file__") and m.__file__:
             if m.__file__ is source:
                 continue
-
             if any(blacklisted in module_name for blacklisted in BLACKLIST):
                 continue
 
             m_path = Path(m.__file__).resolve()
             if PROJECT_ROOT in m_path.parents or m_path == PROJECT_ROOT:
+                print("reloading", m)
                 importlib.reload(m)
 
 sys.modules[__name__] = deep_reload

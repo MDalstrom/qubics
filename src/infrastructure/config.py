@@ -5,7 +5,7 @@ _config = {
     "bg_color": (255, 255, 255),
     "fps": 60,
     "timedelta": 1.0 / 60.0,
-    "timescale": 0.25,
+    "timescale": 1,
     "scenario": "scenario1",
     "virtual_width": 2700,
     "virtual_height": 4800,
@@ -29,7 +29,7 @@ def get_config():
     import argparse
 
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("-o", "--output", type=str)
+    parser.add_argument("-o", "--output", type=str, nargs='?')
     parser.add_argument("-d", "--duration", type=int)
     parser.add_argument("-w", "--width", type=int)
     parser.add_argument("-h", "--height", type=int)

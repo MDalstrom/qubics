@@ -26,3 +26,6 @@ exp: .venv/.deps-installed | $(METALLIB)
 
 run: .venv/.deps-installed | $(METALLIB)
 	$(PY) src/main.py --width=480 --height=854 --watch=true
+
+alt: .venv/.deps-installed | $(METALLIB)
+	$(PY) -m src.alt.main --api=metal
