@@ -1,8 +1,10 @@
-from src.alt import hot_reload, bootstrap
+from q_engine import hot_reload, bootstrap
 
+def fallback_tick(*args, **kwargs):
+    pass
 def tick_fc():
-    from src.alt.soft_body import tick
-    return tick
+    from q_engine.bootstrap import get_tick
+    return get_tick()
 tick = tick_fc()
 
 def reload(event):
@@ -18,6 +20,7 @@ def dispatch(*args, **kwargs):
     try:
         tick(*args, **kwargs)
     except Exception as e:
+        tick = fallback_tick
         import traceback
         traceback.print_exception(e)
 

@@ -1,7 +1,8 @@
-from functools import wraps
+from q_engine.alt.metal.deps import RenderingContext
 from time import time
 import Metal
-from src.alt.ecs import Component, World, Archetype, SystemDesc, build_batches, query, schedule, RenderingContext
+from q_engine.alt.ecs.components import Component, World, Archetype
+from q_engine.alt.ecs.systems import SystemDesc, build_batches, query, schedule
 import mlx.core as mx
 import math
 
@@ -35,8 +36,8 @@ class CollisionContacts(Component):
 
 
 def create_circle_body(arch: Archetype, center: tuple, radius: float, num_points: int, color: tuple = (1.0, 0.0, 0.0, 1.0)):
-    point_component: SoftBodyPoint = arch.chunks[SoftBodyPoint]
-    velocity_component: Velocity = arch.chunks[Velocity]
+    point_component: SoftBodyPoint = arch.components[SoftBodyPoint]
+    velocity_component: Velocity = arch.components[Velocity]
     entities = []
     
     for i in range(num_points):
@@ -281,6 +282,22 @@ def render_gizmo_contacts(context: RenderingContext):
     
     return inner
 
+# create_sim_fn(handle: Deps):
+#   handle.add()
+#   def inner(): ...
+#   return inner
+
+# create_render_fn(device: MetalDevice):
+#   device.create_encoder()
+#   def inner(): ...
+#   return inner
+
+# def loop(fn) <> def run(fn)
+
+# def tick_fc():
+#   world = World()
+#   
+
 
 def get_tick():
     arch = Archetype([SoftBodyPoint, Velocity, CollisionContacts])
@@ -337,22 +354,8 @@ def get_tick():
         render_soft_bodies(context, bodies_info)(world)
         # # Render collision contact gizmos
         render_gizmo_contacts(context)(world)
-        print('update')
     
     return call
 
 
-def wrap_python_errors(fn):
-    @wraps(fn)
-    def _(*args, **kwargs):
-        try:
-            return fn(*args, **kwargs)
-        except Exception as e:
-            import traceback
-            traceback.print_exception(e)
-            raise
-    return _
-
-
-tick = get_tick()
-tick = wrap_python_errors(tick)
+get_tick()

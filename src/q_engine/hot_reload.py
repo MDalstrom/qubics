@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import importlib
 from pathlib import Path
 import sys
@@ -7,8 +6,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 BLACKLIST = {
-    'infrastructure.rendering',
-    'src.alt.metal_deps'
+    'q_engine.metal.deps'
 }
 
 def reload(source: str):

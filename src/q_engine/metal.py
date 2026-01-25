@@ -1,27 +1,32 @@
 from __future__ import annotations
+from dataclasses import dataclass
+from functools import partial
+from typing import Any
 import Cocoa
 import Metal
 import MetalKit
 import objc
 from pathlib import Path
 import Foundation
-from src.alt.ecs import RenderingContext
 
 
 frame = Cocoa.NSMakeRect(0, 0, 800, 600)
 color = Metal.MTLClearColorMake(0, 0, 0, 1)
 
+@dataclass
+class RenderingContext:
+    device: Any
+    encoder: Any
+    buffer: Any
 
 class ViewDelegate(Cocoa.NSObject):
-    def initWithDevice_pipeline_tick_(self, device, pipeline, tick):
+    def initWithDevice_tick_(self, device, tick):
         self = objc.super(ViewDelegate, self).init()
         if self is None:
             return None
 
-        self.device = device
-        self.pipeline = pipeline
-        self.tick = tick
         self.commandQueue = device.newCommandQueue()
+        self.tick = tick
 
         return self
 
@@ -29,26 +34,8 @@ class ViewDelegate(Cocoa.NSObject):
         drawable = view.currentDrawable()
         if drawable is None:
             return
-
-        rpd = view.currentRenderPassDescriptor()
         cb = self.commandQueue.commandBuffer()
-
-        encoder = cb.renderCommandEncoderWithDescriptor_(rpd)
-        encoder.setRenderPipelineState_(self.pipeline)
-        viewport = Metal.MTLViewport()
-        viewport.originX = 0
-        viewport.originY = 0
-        viewport.width = view.drawableSize().width
-        viewport.height = view.drawableSize().height
-        viewport.znear = -1.0
-        viewport.zfar = 1.0
-        encoder.setViewport_(viewport)
-        context = RenderingContext(device=self.device, encoder=encoder, buffer=cb)
-        context.viewport_width = view.drawableSize().width
-        context.viewport_height = view.drawableSize().height
-        self.tick(context)
-        encoder.endEncoding()
-
+        self.tick(command_buffer=cb)
         cb.presentDrawable_(drawable)
         cb.commit()
 
@@ -61,7 +48,7 @@ def device_fc():
 
 
 def library_fc(device):
-    library_path = Path(__file__).resolve().parent.parent.parent
+    library_path = Path(__file__).resolve().parent.parent.parent.parent.parent
     library_path = library_path / "build" / "default.metallib"
     url = Foundation.NSURL.fileURLWithPath_(str(library_path))
     library, error = device.newLibraryWithURL_error_(url, None)
@@ -104,6 +91,7 @@ def pipeline_fc(
     )
 
     state, error = device.newRenderPipelineStateWithDescriptor_error_(descriptor, None)
+    print(error)
     assert not error
     return state
 
@@ -163,9 +151,9 @@ def run(tick):
     device = device_fc()
     view = view_fc(device)
     library = library_fc(device)
-    pipeline = pipeline_fc(library, device)
-    view_delegate = ViewDelegate.alloc().initWithDevice_pipeline_tick_(
-        device, pipeline, tick
+    tick = partial(tick, view=view, device=device, library=library)
+    view_delegate = ViewDelegate.alloc().initWithDevice_tick_(
+        device, tick
     )
     app_delegate = AppDelegate.alloc().init()
     app = app_fc()

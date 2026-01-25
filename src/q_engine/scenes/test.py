@@ -1,7 +1,7 @@
 from functools import wraps
 from time import time
 import Metal
-from src.alt.ecs import Component, World, Archetype, SystemDesc, build_batches, query, schedule, RenderingContext
+from q_engine.alt.ecs import Component, World, Archetype, SystemDesc, build_batches, query, schedule, RenderingContext
 import mlx.core as mx
 
 class Transform(Component):
@@ -71,12 +71,9 @@ def rotate(transform: Transform, angular_velocity: AngularVelocity):
         new_local = rot_mat @ transform.local[e]
         new_locals.append(new_local)
     
-    # Update local transforms and recompute world transforms
     if new_locals:
         transform.local = mx.stack(new_locals)
-        # World = local (no parent in this case, so world == local)
         transform.world = transform.local
-        mx.eval(transform.world, transform.local)
 
 
 def render(context: RenderingContext):
@@ -96,8 +93,6 @@ def render(context: RenderingContext):
             if vertices.size == 0:
                 return
             
-            # Evaluate MLX arrays before creating Metal buffers
-            mx.eval(vertices, rgba)
             
             vertex_buf = context.device.newBufferWithBytes_length_options_(
                 memoryview(vertices), vertices.nbytes, 0
