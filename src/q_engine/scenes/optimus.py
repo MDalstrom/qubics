@@ -1,8 +1,8 @@
 import ctypes
 import Metal
-from q_engine.alt.ecs.components import Component, World, Archetype
+from q_engine.ecs.components import Component, World, Archetype
 import numpy as np
-from q_engine.alt.ecs.systems import aggregate, query
+from q_engine.ecs.systems import aggregate, query
 
 
 class Point(Component):

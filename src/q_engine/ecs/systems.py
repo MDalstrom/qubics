@@ -1,12 +1,13 @@
 from concurrent.futures import ThreadPoolExecutor
 from collections import deque
 from functools import wraps
-from typing import Callable, Iterable, Protocol, TypeVar, get_args, get_origin
-from q_engine.alt.ecs.components import World
+from typing import Any, Callable, Iterable, Protocol, TypeVar, get_args, get_origin
+from q_engine.ecs.components import Component, Entity, World
 from time import time
 
-T = TypeVar('T')
+T = TypeVar("T")
 type Write[T] = T
+
 
 def query(fn: Callable):
     @wraps(fn)
@@ -24,13 +25,15 @@ def query(fn: Callable):
                 if dependency in arch.types:
                     arches.append(arch)
                 i = i - 1
-    
+
         for arch in arches:
             fn(*[arch.components[dep] for dep in param_types])
         return
+
     return wrapper
 
-class SystemDesc():
+
+class SystemDesc:
     def __init__(self, reads: set[type], writes: set[type], fn: Callable) -> None:
         self.reads = reads
         self.writes = writes
@@ -49,21 +52,26 @@ class SystemDesc():
             else:
                 reads.add(comp)
         return SystemDesc(reads, writes, fn)
-    
+
     @staticmethod
     def from_fn(fn: Callable):
         return SystemDesc.from_components(fn, fn.__annotations__.values())
 
     @staticmethod
-    def from_wrapped(fn:Callable, source:Callable):
-        return SystemDesc.from_components(fn, list(fn.__annotations__.values()) + list(source.__annotations__.values()))
+    def from_wrapped(fn: Callable, source: Callable):
+        return SystemDesc.from_components(
+            fn,
+            list(fn.__annotations__.values()) + list(source.__annotations__.values()),
+        )
 
     @staticmethod
-    def resolve(a: 'SystemDesc', b: 'SystemDesc') -> bool: 
+    def resolve(a: "SystemDesc", b: "SystemDesc") -> bool:
         return bool((a.writes & b.writes) or (a.writes & b.reads))
-    
 
-def build_batches(systems: list[SystemDesc], resolve: Callable) -> list[list[SystemDesc]]:
+
+def build_batches(
+    systems: list[SystemDesc], resolve: Callable
+) -> list[list[SystemDesc]]:
     edges: dict[SystemDesc, set[SystemDesc]] = {}
     indeg: dict[SystemDesc, int] = {}
 
@@ -72,7 +80,7 @@ def build_batches(systems: list[SystemDesc], resolve: Callable) -> list[list[Sys
         indeg[s] = 0
 
     for i, a in enumerate(systems):
-        for b in systems[i + 1:]:
+        for b in systems[i + 1 :]:
             if resolve(a, b):
                 edges[a].add(b)
                 indeg[b] += 1
@@ -90,8 +98,9 @@ def build_batches(systems: list[SystemDesc], resolve: Callable) -> list[list[Sys
                 indeg[v] -= 1
                 if indeg[v] == 0:
                     q.append(v)
-    
+
     return batches
+
 
 def schedule(batches: list[list[Callable]]):
     def tick(*args, **kwargs):
@@ -100,34 +109,39 @@ def schedule(batches: list[list[Callable]]):
                 futures = [ex.submit(fn, *args, **kwargs) for fn in batch]
                 for f in futures:
                     f.result()
+
     return tick
 
-class System(Protocol):
-    def __call__(self, world: World) -> None: ...
-class SystemFactory(Protocol):
-    def __call__(self, *a, **kw) -> System: ...
 
-def aggregate(factories: list[SystemFactory]):
+class RenderingSystem(Protocol):
+    def __call__(self, world: World, alpha: float) -> None: ...
+
+
+class SimulationSystem(Protocol):
+    def __call__(self, world: World, dt: float) -> None: ...
+
+
+def aggregate(factories: list):
     def create(*fc_args, **fc_kwargs):
         systems = [fc(*fc_args, **fc_kwargs) for fc in factories]
+
         def tick(*tick_args, **tick_kwargs):
             for s in systems:
                 s(*tick_args, **tick_kwargs)
+
         return tick
+
     return create
 
-def assemble(
-    bake: Callable, 
-    simulate_fc: Callable,
-    render_fc: Callable,
-    dt: float
-):
+
+def assemble(bake: Callable, simulate_fc: Callable, render_fc: Callable, dt: float):
     world = World()
     bake(world)
-    
+
     accumulator = 0.0
     last = None
-    def tick(*args, **kwargs):
+
+    def tick():
         nonlocal last
         nonlocal accumulator
 
@@ -137,9 +151,23 @@ def assemble(
         last = current
 
         while accumulator > dt:
-            simulate_fc(dt, *args, **kwargs)(world)
+            simulate_fc(dt)(world)
             accumulator -= dt
-        
-        render_fc(alpha=accumulator / dt, *args, **kwargs)(world)
+
+        render_fc(alpha=accumulator / dt)(world)
+
     return tick
 
+class CommandBuffer:
+    def __init__(self, world: World) -> None:
+        self.world = world
+        self._ops = []
+
+    def create_entity(self) -> Entity:
+        ...
+    def add_component(self, e: Entity, type: type[Component]) -> None:
+        ...
+    def set_component(self, e: Entity, fn: Callable[[Component],]):
+        ...
+    def playback(self): 
+        ...

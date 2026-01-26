@@ -1,6 +1,5 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from functools import partial
 from typing import Any
 import Cocoa
 import Metal
@@ -13,34 +12,31 @@ import Foundation
 frame = Cocoa.NSMakeRect(0, 0, 800, 600)
 color = Metal.MTLClearColorMake(0, 0, 0, 1)
 
-@dataclass
-class RenderingContext:
-    device: Any
-    encoder: Any
-    buffer: Any
 
-class ViewDelegate(Cocoa.NSObject):
-    def initWithDevice_tick_(self, device, tick):
-        self = objc.super(ViewDelegate, self).init()
-        if self is None:
-            return None
+def view_delegate_fc(device, tick):
+    class ViewDelegate(Cocoa.NSObject):
+        def initWithDevice_tick_(self, device, tick):
+            self = objc.super(ViewDelegate, self).init()
+            if self is None:
+                return None
 
-        self.commandQueue = device.newCommandQueue()
-        self.tick = tick
+            self.commandQueue = device.newCommandQueue()
+            self.tick = tick
 
-        return self
+            return self
 
-    def drawInMTKView_(self, view):
-        drawable = view.currentDrawable()
-        if drawable is None:
-            return
-        cb = self.commandQueue.commandBuffer()
-        self.tick(command_buffer=cb)
-        cb.presentDrawable_(drawable)
-        cb.commit()
+        def drawInMTKView_(self, view):
+            drawable = view.currentDrawable()
+            if drawable is None:
+                return
+            cb = self.commandQueue.commandBuffer()
+            self.tick(command_buffer=cb)
+            cb.presentDrawable_(drawable)
+            cb.commit()
 
-    def mtkView_drawableSizeWillChange_(self, view, size):
-        pass
+        def mtkView_drawableSizeWillChange_(self, view, size):
+            pass
+    return ViewDelegate.alloc().initWithDevice_tick_(device, tick)
 
 
 def device_fc():
@@ -48,52 +44,14 @@ def device_fc():
 
 
 def library_fc(device):
-    library_path = Path(__file__).resolve().parent.parent.parent.parent.parent
-    library_path = library_path / "build" / "default.metallib"
+    library_path = (
+        Path(__file__).resolve().parent.parent.parent
+        / "build" / "default.metallib"
+    )
     url = Foundation.NSURL.fileURLWithPath_(str(library_path))
     library, error = device.newLibraryWithURL_error_(url, None)
     assert not error
     return library
-
-
-def pipeline_fc(
-    library: Metal.MTLLibrary,
-    device: Metal.MTLDevice,
-):
-    descriptor = Metal.MTLRenderPipelineDescriptor.alloc().init()
-
-    vertex_fn = library.newFunctionWithName_("vertex_main")
-    fragment_fn = library.newFunctionWithName_("fragment_main")
-
-    descriptor.setVertexFunction_(vertex_fn)
-    descriptor.setFragmentFunction_(fragment_fn)
-
-    # Set up vertex descriptor for 3D position
-    vertex_descriptor = Metal.MTLVertexDescriptor.alloc().init()
-    vertex_descriptor.attributes().objectAtIndexedSubscript_(0).setFormat_(Metal.MTLVertexFormatFloat3)
-    vertex_descriptor.attributes().objectAtIndexedSubscript_(0).setOffset_(0)
-    vertex_descriptor.attributes().objectAtIndexedSubscript_(0).setBufferIndex_(0)
-    vertex_descriptor.layouts().objectAtIndexedSubscript_(0).setStride_(12)
-    descriptor.setVertexDescriptor_(vertex_descriptor)
-
-    color_attachment = descriptor.colorAttachments().objectAtIndexedSubscript_(0)
-    color_attachment.setPixelFormat_(Metal.MTLPixelFormatBGRA8Unorm)
-    color_attachment.setBlendingEnabled_(True)
-    color_attachment.setRgbBlendOperation_(Metal.MTLBlendOperationAdd)
-    color_attachment.setAlphaBlendOperation_(Metal.MTLBlendOperationAdd)
-    color_attachment.setSourceRGBBlendFactor_(Metal.MTLBlendFactorSourceAlpha)
-    color_attachment.setSourceAlphaBlendFactor_(Metal.MTLBlendFactorSourceAlpha)
-    color_attachment.setDestinationRGBBlendFactor_(
-        Metal.MTLBlendFactorOneMinusSourceAlpha
-    )
-    color_attachment.setDestinationAlphaBlendFactor_(
-        Metal.MTLBlendFactorOneMinusSourceAlpha
-    )
-
-    state, error = device.newRenderPipelineStateWithDescriptor_error_(descriptor, None)
-    print(error)
-    assert not error
-    return state
 
 
 def view_fc(device):
@@ -118,13 +76,14 @@ def window_fc():
         Cocoa.NSBackingStoreBuffered,
         False,
     )
-    window.makeKeyAndOrderFront_(None)
     return window
 
 
-class AppDelegate(Cocoa.NSObject):
-    def applicationShouldTerminateAfterLastWindowClosed_(self, app):
-        return True
+def app_delegate_fc():
+    class AppDelegate(Cocoa.NSObject):
+        def applicationShouldTerminateAfterLastWindowClosed_(self, app):
+            return True
+    return AppDelegate.alloc().init()
 
 
 def app_fc():
@@ -146,35 +105,34 @@ def app_fc():
 
     return app
 
+@dataclass
+class State:
+    device: Metal.MTLDevice
+    window: Cocoa.NSWindow
+    app: Cocoa.NSApplication
+    view: MetalKit.MTKView
 
-def run(tick):
-    device = device_fc()
-    view = view_fc(device)
-    library = library_fc(device)
-    tick = partial(tick, view=view, device=device, library=library)
-    view_delegate = ViewDelegate.alloc().initWithDevice_tick_(
-        device, tick
-    )
-    app_delegate = AppDelegate.alloc().init()
-    app = app_fc()
-    window = window_fc()
+def run(state: State, tick) -> None:
+    view_delegate = view_delegate_fc(state.device, tick)
+    app_delegate = app_delegate_fc()
 
-    app.setDelegate_(app_delegate)
-    view.setDelegate_(view_delegate)
-    view.setPaused_(False)
-    view.setEnableSetNeedsDisplay_(False)
-    window.setContentView_(view)
-    window.center()
+    state.app.setDelegate_(app_delegate)
+    state.view.setDelegate_(view_delegate)
+    state.view.setPaused_(False)
+    state.view.setEnableSetNeedsDisplay_(False)
+    state.window.setContentView_(state.view)
+    state.window.center()
+    state.window.makeKeyAndOrderFront_(None)
 
     def window_will_close(notification):
-        app.terminate_(None)
+        state.app.terminate_(None)
 
     Cocoa.NSNotificationCenter.defaultCenter().addObserver_selector_name_object_(
         None,
         objc.selector(window_will_close, signature=b"v@:@"),
         Cocoa.NSWindowWillCloseNotification,
-        window,
+        state.window,
     )
 
-    app.run()
-    return view, view_delegate, app, window
+    return state.app.run()
+
