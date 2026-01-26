@@ -1,16 +1,22 @@
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Callable, Protocol
+from typing import Callable, Iterable, Protocol
 import numpy as np
 
 
 class Component(Protocol):
     def add(self, i: int, size: int = 1): ...
 
-@dataclass
+@dataclass(eq=False)
 class Entity():
     archetype: "Archetype"
     index: int
+
+    def __hash__(self):
+        return id(self)
+
+    def __eq__(self, other):
+        return self is other
 
 class Removed(Component):
     def __init__(self) -> None:
@@ -57,11 +63,10 @@ class Archetype:
         return self.components.keys()
 
     def create_entity(self) -> Entity:
-        i = self.entities_count
+        i = self.components[Count].count
         for c in self.components.values():
             c.add(i)
         result = Entity(self, i)
-        self.entities_count = i + 1
         return result
 
 class World:
@@ -72,6 +77,9 @@ class World:
 
     def move_entity(self, e: Entity, new_types: set[type[Component]]):
         current_archetype = e.archetype
+        if current_archetype.types == new_types:
+            return
+
         for a in self.archetypes:
             if a.types == new_types:
                 new_a = a
@@ -87,14 +95,11 @@ class World:
         e.archetype = new_a
         e.index = new_entity.index
 
-class DeferredEntity(int):
-    @lru_cache(None)
-    def playback(self, world: World) -> Entity:
-        return world.create_entity()
+class DeferredEntity(int): ...
 
 class CommandBuffer:
     def __init__(self) -> None:
-        self._ops = []
+        self._descriptors = []
         self._entities = []
 
     def create_entity(self) -> DeferredEntity:
@@ -104,35 +109,41 @@ class CommandBuffer:
         return result
 
     def add_component(self, e: DeferredEntity | Entity, t: type[Component]) -> None:
-        self._ops.append(('add', e, t))
+        self._descriptors.append(('add', e, t))
 
-    def set_component(self, e: DeferredEntity | Entity, t: type[Component], fn: Callable[[Entity, Component],]) -> None:
-        self._ops.append(('set', e, t, fn))
+    def set_component(self, e: DeferredEntity | Entity, t: type[Component], fn: Callable[[Entity, Component], None]) -> None:
+        self._descriptors.append(('set', e, t, fn))
     
     def remove_component(self, e: DeferredEntity | Entity, t: type[Component]) -> None:
-        self._ops.append(("remove", e, t))
+        self._descriptors.append(("remove", e, t))
 
-    def playback(self, world: World): 
+    def playback(self, world: World) -> list[Entity]:
         components: dict[Entity, set[type[Component]]] = {}
 
-        for op, e, *args in self._ops:
-            if e is DeferredEntity:
-                e = e.playback(world)
+        resolved_entities = {e: world.create_entity() for e in self._entities}
+        def resolve(e):
+            return resolved_entities.get(e) or e
+
+        set_ops = []
+        for descriptor in self._descriptors:
+            operation, e, *_ = descriptor
+            e = resolve(e)
             if e not in components:
                 components[e] = set(e.archetype.types)
 
-            if op == 'add':
-                t, = args
-                components[e].add(t)
-            elif op == 'remove':
-                t, = args
-                components[e].remove(t)
-        
-        for e, types in components.items():
-            world.move_entity(e, types)
+            if operation == 'add':
+                components[e].add(descriptor[2])
+            elif operation == 'remove':
+                components[e].discard(descriptor[2])
+            elif operation == 'set':
+                set_ops.append(descriptor)
 
-        for op, e, t, fn in self._ops :
-            if op != 'set':
-                continue
-            fn(e.playback(world), e.archetype[t])
+        for entity, types in components.items():
+            world.move_entity(entity, types)
+
+        for _, e, t, fn in set_ops:
+            entity = resolve(e)
+            fn(entity, entity.archetype.components[t])
+
+        return list(resolved_entities.values())
 

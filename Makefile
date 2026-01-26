@@ -22,3 +22,7 @@ PY := .venv/bin/python3
 
 run: .venv/.deps-installed | $(METALLIB)
 	$(PY) -m q_engine.main --api=metal --scene=optimus
+
+.PHONY: test
+test: .venv/.deps-installed
+	$(PY) -m unittest src/q_tests/test_ecs.py
