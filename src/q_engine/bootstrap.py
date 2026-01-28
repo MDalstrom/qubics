@@ -1,10 +1,8 @@
 from functools import partial
 from importlib import import_module
 from argparse import ArgumentParser
-
 from q_engine.domain import Loop, Tick
-from q_engine.ecs.systems import assemble
-from q_engine.metal import State
+from q_engine.persistent.metal_deps import get_state
 
 
 def get_config():
@@ -15,21 +13,14 @@ def get_config():
     return parser.parse_args()
 
 
-def get_run(config=get_config()) -> Loop:
+def get_run(state=get_state(), config=get_config()) -> Loop:
     if config.api == "metal":
         import q_engine.metal as metal
-        
-        device = metal.device_fc()
-        view = metal.view_fc(device)
-        window = metal.window_fc()
-        app = metal.app_fc()
-        state = State(device, window, app, view)
-
         return partial(metal.run, state)
     raise
 
 
 def get_tick(config=get_config()) -> Tick:
     module = import_module(f"q_engine.scenes.{config.scene}")
-    return assemble(module.bake, module.simulate_fc, module.render_fc, 1 / config.ticks)
+    return module.get_tick()
 

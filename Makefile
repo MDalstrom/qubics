@@ -11,9 +11,9 @@ SHADERS := shaders
 AIR := $(BUILD)/shaders.air
 METALLIB := $(BUILD)/default.metallib
 
-$(METALLIB): $(SHADERS)/$(wildcard *.metal)
+$(METALLIB): $(wildcard $(SHADERS/)*.metal)
 	mkdir $(BUILD) || rm -f $(METALLIB)
-	xcrun -sdk macosx metal $(SHADERS)/*.metal -o $(METALLIB)
+	xcrun -sdk macosx metal -g -frecord-sources $(SHADERS)/*.metal -o $(METALLIB)
 
 PY := .venv/bin/python3
 
@@ -21,7 +21,7 @@ PY := .venv/bin/python3
 .PHONY: run
 
 run: .venv/.deps-installed | $(METALLIB)
-	$(PY) -m q_engine.main --api=metal --scene=optimus
+	$(PY) -m q_engine.main --api=metal
 
 .PHONY: test
 test: .venv/.deps-installed

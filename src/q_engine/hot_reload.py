@@ -1,7 +1,7 @@
 import importlib
 from pathlib import Path
 import sys
-from typing import Callable, TypeVar
+from typing import Callable, ParamSpec, TypeVar
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -28,8 +28,10 @@ def watch(fn: Callable):
     obs.schedule(handler, '.', recursive=True)
     obs.start()
 
-T = TypeVar('T', bound=Callable)
-def dispatch(fn: T | None) -> tuple[T, Callable]:
+P = ParamSpec('P')
+T = TypeVar('T')
+Fn = Callable[P, T]
+def dispatch(fn: Fn | None) -> tuple[Fn, Callable[[Fn], None]]:
     def update(next):
         nonlocal fn
         fn = next

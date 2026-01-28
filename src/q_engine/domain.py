@@ -7,5 +7,3 @@ class Tick(Protocol):
 class Loop(Protocol):
     def __call__(self, tick: Tick) -> None: ...
 
-
-

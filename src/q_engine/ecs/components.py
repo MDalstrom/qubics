@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from functools import lru_cache
-from typing import Callable, Iterable, Protocol
+from functools import partial
+from typing import Callable, ParamSpec, Protocol, TypeVar
 import numpy as np
 
 
@@ -97,6 +97,7 @@ class World:
 
 class DeferredEntity(int): ...
 
+C = TypeVar('C', bound=Component)
 class CommandBuffer:
     def __init__(self) -> None:
         self._descriptors = []
@@ -111,9 +112,13 @@ class CommandBuffer:
     def add_component(self, e: DeferredEntity | Entity, t: type[Component]) -> None:
         self._descriptors.append(('add', e, t))
 
-    def set_component(self, e: DeferredEntity | Entity, t: type[Component], fn: Callable[[Entity, Component], None]) -> None:
+    def set_component(self, e: DeferredEntity | Entity, t: type[C], fn: Callable[[Entity, C], None]) -> None:
         self._descriptors.append(('set', e, t, fn))
     
+    @staticmethod
+    def set_deferred(cb: 'CommandBuffer', e: DeferredEntity | Entity, t: type[C]) -> Callable[[Callable[[Entity, C], None]], None]:
+        return partial(cb.set_component, e, t)
+
     def remove_component(self, e: DeferredEntity | Entity, t: type[Component]) -> None:
         self._descriptors.append(("remove", e, t))
 

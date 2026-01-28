@@ -53,7 +53,7 @@ def create_system(view, device, library, alpha, command_buffer):
     color_attachment.setDestinationAlphaBlendFactor_(Metal.MTLBlendFactorOneMinusSourceAlpha)
 
     pipeline, error = device.newRenderPipelineStateWithDescriptor_error_(pipeline_desc, None)
-    assert not error
+    assert pipeline, error
     
     @query
     def system(point: Point):

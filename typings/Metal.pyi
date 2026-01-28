@@ -35,9 +35,12 @@ class MTLRenderPipelineState: ...
 
 MTLPrimitiveTypeTriangle = Any
 MTLResourceStorageModeShared = Any
+MTLResourceStorageModeManaged = Any
 MTLVertexStepFunctionPerVertex = Any
+MTLVertexStepFunctionPerInstance = Any
 MTLVertexFormatFloat2 = Any
 MTLVertexFormatFloat3 = Any
+MTLVertexFormatFloat4 = Any
 MTLPixelFormatBGRA8Unorm = Any
 MTLBlendOperationAdd = Any
 MTLBlendFactorSourceAlpha = Any

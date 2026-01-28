@@ -48,17 +48,21 @@ kernel void project(
     uint j = e.y;
 
     float2 delta = positions[j] - positions[i];
-    float len = length(delta);
-    if (len < 1e-6) return;
+    float lenSq = dot(delta, delta);
+    if (lenSq < 1e-12) return;
 
-    float diff = (len - restLen[id]) / len;
+    float invLen = rsqrt(lenSq);
+    float len = lenSq * invLen;
+    float diff = (len - restLen[id]) / invLen;
+
     float w1 = invMass[i];
     float w2 = invMass[j];
     float wsum = w1 + w2;
-    if (wsum == 0.0) return;
 
-    float2 corr = delta * diff / wsum;
-
+    float invWsum = 1.0 / (w1 + w2);
+    if (!isfinite(invWsum)) return;
+    
+    float2 corr = delta * (diff * invWsum);
     positions[i] += corr * w1;
     positions[j] -= corr * w2;
 }

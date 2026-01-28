@@ -1,8 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
 from collections import deque
 from functools import wraps
-from typing import Any, Callable, Iterable, Protocol, TypeVar, get_args, get_origin
-from q_engine.ecs.components import Component, Entity, World
+from typing import Callable, Iterable, Protocol, TypeVar, get_args, get_origin
+from q_engine.ecs.components import World
 from time import time
 
 T = TypeVar("T")
@@ -158,16 +158,3 @@ def assemble(bake: Callable, simulate_fc: Callable, render_fc: Callable, dt: flo
 
     return tick
 
-class CommandBuffer:
-    def __init__(self, world: World) -> None:
-        self.world = world
-        self._ops = []
-
-    def create_entity(self) -> Entity:
-        ...
-    def add_component(self, e: Entity, type: type[Component]) -> None:
-        ...
-    def set_component(self, e: Entity, fn: Callable[[Component],]):
-        ...
-    def playback(self): 
-        ...
