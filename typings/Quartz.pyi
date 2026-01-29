@@ -1,0 +1,3 @@
+class CoreGraphics():
+    @staticmethod
+    def CGAssociateMouseAndMouseCursorPosition(state): ...

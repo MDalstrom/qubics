@@ -1,48 +1,81 @@
-from functools import wraps
 import numpy as np
 from q_engine.application.render.mesh import Mesh, Transform, create
-from q_engine.ecs.components import CommandBuffer, World
+from q_engine.ecs.components import CommandBuffer, World, Component
 from q_engine.application.render.camera import Camera
 from q_engine.application.kinetic.velocity import AngularVelocity, rotation_system
 from q_engine.application.kinetic.mover import CameraState, Mover, create_mover
-import q_engine.keys as keys
 from q_engine.metal import mk_library
 from q_engine.persistent.metal import state as metal_state
 
 
-def bake(world: World):
-    cb = CommandBuffer()
+def generate_uv_sphere_triangle_list_vertices(radius=1.0, segments=32, stacks=16):
+    vertices = []
 
-    rng = np.random.default_rng()
-    for _ in range(10):
-        entity = cb.create_entity()
-        cb.add_component(entity, Mesh)
-        cb.add_component(entity, Transform)
-        cb.add_component(entity, AngularVelocity)
+    for i in range(stacks):
+        phi1 = np.pi / 2 - i * np.pi / stacks
+        phi2 = np.pi / 2 - (i + 1) * np.pi / stacks
 
-        @CommandBuffer.set_deferred(cb, entity, Mesh)
-        def set_mesh(e, mesh: Mesh):
-            mesh.vertices = np.array([
-                    [-1, -1, 0, 1],
-                    [1,  -1, 0, 1],
-                    [0,   1, 0, 1],
-                ],
-                dtype=np.float32,
-            )
+        for j in range(segments):
+            theta1 = j * 2 * np.pi / segments
+            theta2 = (j + 1) * 2 * np.pi / segments
 
-        @CommandBuffer.set_deferred(cb, entity, Transform)
-        def set_transform(e, transform: Transform):
-            i = rng.random() * 10
-            transform.matrices[e.index] = np.eye(4, dtype=np.float32, order="F")
-            transform.matrices[e.index, 3, 0] = ((i % 4) / 4) * 10
-            transform.matrices[e.index, 3, 1] = ((i // 4) / 5) * 10
-            transform.matrices[e.index, 3, 2] = 10.0
+            def to_cartesian(phi, theta):
+                x = radius * np.cos(phi) * np.cos(theta)
+                y = radius * np.sin(phi)
+                z = radius * np.cos(phi) * np.sin(theta)
+                return [x, y, z, 1.0]
 
-        @CommandBuffer.set_deferred(cb, entity, AngularVelocity)
-        def set_angular_velocity(e, ang_vel: AngularVelocity):
-            ang_vel.axes[e.index] = [0, 1, 0]
-            ang_vel.speeds[e.index] = np.pi / 2
+            v1 = to_cartesian(phi1, theta1)
+            v2 = to_cartesian(phi2, theta1)
+            v3 = to_cartesian(phi2, theta2)
+            v4 = to_cartesian(phi1, theta2)
 
+            vertices.append(v1)
+            vertices.append(v2)
+            vertices.append(v4)
+
+            vertices.append(v2)
+            vertices.append(v3)
+            vertices.append(v4)
+
+    return np.array(vertices, dtype=np.float32)
+
+
+def _configure_spinning_sphere_archetype(
+    cb: CommandBuffer, sphere_vertices: np.ndarray
+):
+    archetype_handle = cb.create_entity()
+    cb.add_component(archetype_handle, Mesh)
+    cb.add_component(archetype_handle, Transform)
+    cb.add_component(archetype_handle, AngularVelocity)
+
+    @CommandBuffer.set_deferred(cb, archetype_handle, Mesh)
+    def set_shared_sphere_mesh(e, mesh: Mesh):
+        mesh.vertices = sphere_vertices
+
+
+def _create_spinning_sphere_instance(cb: CommandBuffer, rng: np.random.Generator):
+    entity = cb.create_entity()
+    cb.add_component(entity, Mesh)
+    cb.add_component(entity, Transform)
+    cb.add_component(entity, AngularVelocity)
+
+    i = rng.random() * 10
+
+    @CommandBuffer.set_deferred(cb, entity, Transform)
+    def set_transform(e, transform: Transform):
+        transform.matrices[e.index] = np.eye(4, dtype=np.float32, order="F")
+        transform.matrices[e.index, 3, 0] = ((i % 4) / 4) * 10
+        transform.matrices[e.index, 3, 1] = ((i // 4) / 5) * 10
+        transform.matrices[e.index, 3, 2] = 10.0
+
+    @CommandBuffer.set_deferred(cb, entity, AngularVelocity)
+    def set_angular_velocity(e, ang_vel: AngularVelocity):
+        ang_vel.axes[e.index] = np.array([0, 1, 0], dtype=np.float32)
+        ang_vel.speeds[e.index] = np.pi / 2
+
+
+def _create_camera(cb: CommandBuffer):
     camera_entity = cb.create_entity()
     cb.add_component(camera_entity, Transform)
     cb.add_component(camera_entity, Camera)
@@ -53,6 +86,31 @@ def bake(world: World):
     def set_camera_transform(e, transform: Transform):
         transform.matrices[e.index] = np.eye(4, dtype=np.float32, order="F")
         transform.matrices[e.index, 3, 2] = 0.0
+
+    @CommandBuffer.set_deferred(cb, camera_entity, Camera)
+    def set_camera_props(e, camera: Camera):
+        camera.fov[e.index] = np.pi / 180 * 80
+        camera.near[e.index] = 0.01
+        camera.far[e.index] = 1000.0
+
+    @CommandBuffer.set_deferred(cb, camera_entity, CameraState)
+    def set_camera_state(e, camera_state: CameraState):
+        camera_state.yaw_angle[e.index] = 0.0
+        camera_state.pitch_angle[e.index] = 0.0
+
+
+def bake(world: World):
+    cb = CommandBuffer()
+    rng = np.random.default_rng()
+
+    sphere_vertices = generate_uv_sphere_triangle_list_vertices(radius=1.0)
+
+    _configure_spinning_sphere_archetype(cb, sphere_vertices)
+
+    for _ in range(10):
+        _create_spinning_sphere_instance(cb, rng)
+
+    _create_camera(cb)
 
     cb.playback(world)
 

@@ -2,6 +2,7 @@ import numpy as np
 from q_engine.ecs.components import Component, World
 from q_engine.ecs.systems import query
 from q_engine.application.render.mesh import Transform
+from q_engine.application.types import Vector3, Scalar, Quaternion
 
 
 def q_from_axis_angle(axis, angle):
@@ -40,23 +41,9 @@ def q_to_mat4(q):
 
 
 class AngularVelocity(Component):
-    def __init__(self):
-        self.axes = np.zeros([0, 3], dtype=np.float32)
-        self.speeds = np.zeros([0], dtype=np.float32)
-        self.orientations = np.zeros([0, 4], dtype=np.float32)
-
-    def add(self, i: int, size: int = 1):
-        current_size = self.axes.shape[0]
-        required_size = i + size
-        if required_size > current_size:
-            to_add = required_size - current_size
-            
-            self.axes = np.concatenate([self.axes, np.zeros((to_add, 3), dtype=np.float32)])
-            self.speeds = np.concatenate([self.speeds, np.zeros(to_add, dtype=np.float32)])
-
-            new_orientations = np.zeros((to_add, 4), dtype=np.float32)
-            new_orientations[:, 3] = 1.0 # Identity quaternion (0,0,0,1)
-            self.orientations = np.concatenate([self.orientations, new_orientations])
+    axes: Vector3
+    speeds: Scalar
+    orientations: Quaternion
 
 
 def rotation_system(world: World, dt: float):

@@ -9,6 +9,13 @@ class NSObject:
 
 def NSMakeRect(x: Any, y: Any, w: Any, h: Any) -> Any: ...
 
+NSEventModifierFlagShift = Any
+NSEventModifierFlagCommand = Any
+NSEventModifierFlagControl = Any
+
+NSTrackingInVisibleRect = Any
+NSTrackingMouseMoved = Any
+NSTrackingActiveInKeyWindow = Any
 NSWindowStyleMaskTitled = Any
 NSWindowStyleMaskClosable = Any
 NSWindowStyleMaskResizable = Any
@@ -17,6 +24,11 @@ NSBackingStoreBuffered = Any
 NSApplicationActivationPolicyRegular = Any
 NSWindowWillCloseNotification = Any
 
+class NSCursor(NSObject):
+    @staticmethod
+    def hide(): ...
+class NSTrackingArea(NSObject):
+    def initWithRect_options_owner_userInfo_(self, rect, options, owner, _): ...
 class NSMenu(NSObject):
     def init(self) -> 'NSMenu': ...
     def addItem_(self, item: Any) -> None: ...
