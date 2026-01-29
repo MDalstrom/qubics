@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import partial
-from typing import Callable, ParamSpec, Protocol, TypeVar
+from typing import Callable, Protocol, TypeVar
 import numpy as np
 
 
@@ -51,6 +51,8 @@ class Count(Component):
 
     def add(self, i: int, size: int = 1):
         self.count = max(self.count, i+size)
+
+
 
 class Archetype:
     def __init__(self, component_types: set[type[Component]]) -> None:
@@ -118,6 +120,7 @@ class CommandBuffer:
     @staticmethod
     def set_deferred(cb: 'CommandBuffer', e: DeferredEntity | Entity, t: type[C]) -> Callable[[Callable[[Entity, C], None]], None]:
         return partial(cb.set_component, e, t)
+
 
     def remove_component(self, e: DeferredEntity | Entity, t: type[Component]) -> None:
         self._descriptors.append(("remove", e, t))

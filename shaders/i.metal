@@ -8,8 +8,9 @@ vertex float4 vertex_main(
 	uint vertexId   [[vertex_id]],
 	uint instanceId [[instance_id]]
 ) {
+
 	float4 world = instanceMatrices[instanceId] * vertices[vertexId];
-	world = viewProjectionMatrix * world;
+	world = world * viewProjectionMatrix;
 	return world;
 };
 

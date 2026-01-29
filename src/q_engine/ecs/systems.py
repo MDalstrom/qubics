@@ -5,9 +5,9 @@ from typing import Callable, Iterable, Protocol, TypeVar, get_args, get_origin
 from q_engine.ecs.components import World
 from time import time
 
+
 T = TypeVar("T")
 type Write[T] = T
-
 
 def query(fn: Callable):
     @wraps(fn)
@@ -27,7 +27,7 @@ def query(fn: Callable):
                 i = i - 1
 
         for arch in arches:
-            fn(*[arch.components[dep] for dep in param_types])
+            fn(*[arch.components[param_type] for param_type in param_types])
         return
 
     return wrapper

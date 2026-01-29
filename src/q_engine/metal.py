@@ -1,19 +1,20 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any
 import Cocoa
 import Metal
 import MetalKit
+import Quartz
 import objc
 from pathlib import Path
 import Foundation
+from q_engine import keys
 
 
-frame = Cocoa.NSMakeRect(0, 0, 800, 600)
+frame = Cocoa.NSMakeRect(0, 0, 800, 800)
 color = Metal.MTLClearColorMake(0, 0, 0, 1)
 
 
-def view_delegate_fc(device, tick):
+def mk_view_delegate(device, tick):
     class ViewDelegate(Cocoa.NSObject):
         def initWithDevice_tick_(self, device, tick):
             self = objc.super(ViewDelegate, self).init()
@@ -36,17 +37,17 @@ def view_delegate_fc(device, tick):
 
         def mtkView_drawableSizeWillChange_(self, view, size):
             pass
+
     return ViewDelegate.alloc().initWithDevice_tick_(device, tick)
 
 
-def device_fc():
+def mk_device():
     return Metal.MTLCreateSystemDefaultDevice()
 
 
-def library_fc(device):
+def mk_library(device):
     library_path = (
-        Path(__file__).resolve().parent.parent.parent
-        / "build" / "default.metallib"
+        Path(__file__).resolve().parent.parent.parent / "build" / "default.metallib"
     )
     url = Foundation.NSURL.fileURLWithPath_(str(library_path))
     library, error = device.newLibraryWithURL_error_(url, None)
@@ -54,19 +55,58 @@ def library_fc(device):
     return library
 
 
-def view_fc(device):
-    view = MetalKit.MTKView.alloc().initWithFrame_device_(frame, device)
+def mk_view(device) -> MetalKit.MTKView:
+    class View(MetalKit.MTKView):
+        def initWithFrame_device_(self, frame, device):
+            self = objc.super(View, self).initWithFrame_device_(frame, device)
+            self.setupMouseTracking()
+            return self
+
+        def acceptsFirstResponder(self):
+            return True
+
+        def setupMouseTracking(self):
+            options = (
+                Cocoa.NSTrackingActiveInKeyWindow
+                | Cocoa.NSTrackingMouseMoved
+                | Cocoa.NSTrackingInVisibleRect
+            )
+
+            tracking_area = (
+                Cocoa.NSTrackingArea.alloc().initWithRect_options_owner_userInfo_(
+                    self.bounds(), options, self, None
+                )
+            )
+            self.addTrackingArea_(tracking_area)
+
+        def flagsChanged_(self, event):
+            keys.update_modifier_keys(event.modifierFlags())
+
+        def mouseMoved_(self, event):
+            keys.set_mouse_delta((event.deltaX(), event.deltaY()))
+
+        def keyDown_(self, event):
+            keys.update_modifier_keys(event.modifierFlags())
+            keys.down(event)
+
+        def keyUp_(self, event):
+            keys.update_modifier_keys(event.modifierFlags())
+            keys.up(event)
+    view = View.alloc().initWithFrame_device_(frame, device)
 
     view.setColorPixelFormat_(Metal.MTLPixelFormatBGRA8Unorm)
     view.setClearColor_(color)
     view.setPaused_(False)
     view.setEnableSetNeedsDisplay_(False)
     view.setPreferredFramesPerSecond_(60)
+    
+    Cocoa.NSCursor.hide()
+    Quartz.CoreGraphics.CGAssociateMouseAndMouseCursorPosition(False)
 
     return view
 
 
-def window_fc():
+def mk_window():
     window = Cocoa.NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
         frame,
         Cocoa.NSWindowStyleMaskTitled
@@ -79,14 +119,22 @@ def window_fc():
     return window
 
 
-def app_delegate_fc():
+def mk_app_delegate():
     class AppDelegate(Cocoa.NSObject):
         def applicationShouldTerminateAfterLastWindowClosed_(self, app):
             return True
+
+        def windowDidBecomeKey_(self, notification):
+            notification.object().setAcceptsMouseMovedEvents_(True)
+            notification.object().setShowsToolbarButton_(False)
+
+        def windowDidResignKey_(self, notification):
+            notification.object().setAcceptsMouseMovedEvents_(False)
+
     return AppDelegate.alloc().init()
 
 
-def app_fc():
+def mk_app():
     app = Cocoa.NSApplication.sharedApplication()
     app.setActivationPolicy_(Cocoa.NSApplicationActivationPolicyRegular)
     app.activateIgnoringOtherApps_(True)
@@ -105,6 +153,7 @@ def app_fc():
 
     return app
 
+
 @dataclass
 class State:
     device: Metal.MTLDevice
@@ -113,21 +162,24 @@ class State:
     view: MetalKit.MTKView
 
 def run(state: State, tick) -> None:
-    view_delegate = view_delegate_fc(state.device, tick)
-    app_delegate = app_delegate_fc()
+    view_delegate = mk_view_delegate(state.device, tick)
+    app_delegate = mk_app_delegate()
 
     state.app.setDelegate_(app_delegate)
     state.view.setDelegate_(view_delegate)
+
     state.view.setPaused_(False)
     state.view.setEnableSetNeedsDisplay_(False)
     state.window.setContentView_(state.view)
     state.window.center()
     state.window.makeKeyAndOrderFront_(None)
 
+    notification_center = Cocoa.NSNotificationCenter.defaultCenter()
+
     def window_will_close(notification):
         state.app.terminate_(None)
 
-    Cocoa.NSNotificationCenter.defaultCenter().addObserver_selector_name_object_(
+    notification_center.addObserver_selector_name_object_(
         None,
         objc.selector(window_will_close, signature=b"v@:@"),
         Cocoa.NSWindowWillCloseNotification,
@@ -135,4 +187,3 @@ def run(state: State, tick) -> None:
     )
 
     return state.app.run()
-

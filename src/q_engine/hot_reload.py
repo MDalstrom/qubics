@@ -5,13 +5,18 @@ from typing import Callable, ParamSpec, TypeVar
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+stoplist = {
+    'q_engine.persistent'
+}
+
 def reload(source: str):
     root = Path(source).parent.resolve()
     for m in list(sys.modules.values()):
         if m and hasattr(m, "__file__") and m.__file__:
             if m.__file__ is source:
                 continue
-
+            if any([m.__name__.startswith(sample) for sample in stoplist]):
+                continue
             m_path = Path(m.__file__).resolve()
             if root in m_path.parents or m_path == root:
                 print("reloading", m)
