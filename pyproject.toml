@@ -6,14 +6,15 @@ dependencies = [
   "pyobjc-framework-Metal",
   "pyobjc-framework-MetalKit",
   "pyobjc-framework-Cocoa",
-  "mlx",
-  "numpy"
+  "pyobjc-framework-Quartz",
+  "numpy",
 ]
 requires-python = ">=3.12"
 
-[tool.pyright]
-venvPath = "."
-venv = ".venv"
-exclude = ["build", "dist", ".venv", "__pycache__"]
-typeStubSearchPaths = ["typings"]
+[dependency-groups]
+dev = [
+  "ty>=0.0.14",
+]
 
+[tool.ty.environment]
+extra-paths = ["typings"]

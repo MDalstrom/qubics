@@ -1,19 +1,20 @@
 import numpy as np
 from q_engine.application.kinetic.velocity import q_from_axis_angle, q_mult, q_to_mat4
 from q_engine.application.render.mesh import Transform
-from q_engine.ecs.components import Component, World
+from q_engine.ecs.components import World, component, Component
 from q_engine.ecs.systems import query
 from q_engine.keys import get_mouse_delta, is_key_down
 from q_engine.application.render.camera import Camera
-from q_engine.application.types import Scalar
 
 
-class Mover(Component):
+@component
+class Mover():
     pass
 
+@component
 class CameraState(Component):
-    yaw_angle: Scalar
-    pitch_angle: Scalar
+    yaw_angle: float
+    pitch_angle: float
 
 
 dt = 1 / 120
@@ -54,22 +55,21 @@ def create_mover(speed: float = 100.0):
             dx, dy = get_mouse_delta()
             sensitivity = 0.005
 
-            camera_state.yaw_angle[0] += -dx * sensitivity
-            camera_state.pitch_angle[0] += -dy * sensitivity
+            camera_state.yaw_angle += -dx * sensitivity
+            camera_state.pitch_angle += -dy * sensitivity
 
             max_pitch_rad = np.deg2rad(89.0)
-            camera_state.pitch_angle[0] = np.clip(camera_state.pitch_angle[0], -max_pitch_rad, max_pitch_rad)
+            camera_state.pitch_angle = np.clip(camera_state.pitch_angle, -max_pitch_rad, max_pitch_rad)
 
-            q_yaw = q_from_axis_angle([0, 1, 0], camera_state.yaw_angle[0])
-            q_pitch = q_from_axis_angle([1, 0, 0], camera_state.pitch_angle[0])
-
+            q_yaw = q_from_axis_angle([0, 1, 0], camera_state.yaw_angle)
+            q_pitch = q_from_axis_angle([1, 0, 0], camera_state.pitch_angle)
             final_rotation_quat = q_mult(q_pitch, q_yaw)
 
             new_rotation_matrix = q_to_mat4(final_rotation_quat)[0:3, 0:3]
 
             camera_world_matrix[0:3, 0:3] = new_rotation_matrix
 
-            yaw = camera_state.yaw_angle[0]
+            yaw = camera_state.yaw_angle
             
             horizontal_right_vec = np.array([np.cos(yaw), 0, np.sin(yaw)], dtype=np.float32)
             horizontal_forward_vec = np.array([-np.sin(yaw), 0, np.cos(yaw)], dtype=np.float32)

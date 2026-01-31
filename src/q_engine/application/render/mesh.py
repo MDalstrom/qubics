@@ -3,15 +3,17 @@ import numpy as np
 
 from q_engine.application.render.camera import Camera
 from q_engine.application.render.view import mk_perspective
-from q_engine.ecs.components import Component, World
+from q_engine.ecs.components import Component, World, component
 from q_engine.ecs.systems import query
-from q_engine.application.types import Vector4, Matrix4x4
+from q_engine.ecs.types import Float32x4x4, Float32x4
 
+@component
 class Mesh(Component):
-    vertices: Vector4
+    vertices: Float32x4
 
+@component
 class Transform(Component):
-    matrices: Matrix4x4
+    matrices: Float32x4x4
 
 def create(device, view, library):
     pipeline_desc = Metal.MTLRenderPipelineDescriptor.alloc().init()
@@ -42,11 +44,10 @@ def create(device, view, library):
         encoder = command_buffer.renderCommandEncoderWithDescriptor_(rpd)
         encoder.setRenderPipelineState_(pipeline)
 
-        @query
         def camera_system(camera: Camera, transform: Transform):
             view_matrix = np.linalg.inv(transform.matrices[0])
             x, y = view.drawableSize()
-            proj_matrix = mk_perspective(camera.fov[0], x / y, camera.near[0], camera.far[0])
+            proj_matrix = mk_perspective(camera.fov, x / y, camera.near, camera.far)
             vp_matrix = view_matrix @ proj_matrix
             view_proj_buffer = device.newBufferWithBytes_length_options_(
                 vp_matrix.tobytes(),
@@ -55,7 +56,6 @@ def create(device, view, library):
             )
             encoder.setVertexBuffer_offset_atIndex_(view_proj_buffer, 0, 2)
 
-            @query
             def mesh_system(transform: Transform, mesh: Mesh):
                 vertex_buffer = device.newBufferWithBytes_length_options_(
                     mesh.vertices.tobytes(),
@@ -64,7 +64,6 @@ def create(device, view, library):
                 )
                 encoder.setVertexBuffer_offset_atIndex_(vertex_buffer, 0, 0)
 
-                # Use cast for transform.matrices as well
                 instance_buffer = device.newBufferWithBytes_length_options_(
                     transform.matrices.tobytes(),
                     transform.matrices.nbytes,
@@ -75,14 +74,11 @@ def create(device, view, library):
                 encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_(
                     Metal.MTLPrimitiveTypeTriangle,
                     0,
-                    mesh.vertices.shape[0], # Use the casted array's shape
-                    transform.matrices.shape[0], # Use the casted array's shape
+                    mesh.vertices.shape[0],
+                    transform.matrices.shape[0],
                 )
-
-            mesh_system(world)
-
-        camera_system(world)
-
+            query(mesh_system)(world)
+        query(camera_system)(world)
         encoder.endEncoding()
 
     return call

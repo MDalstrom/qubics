@@ -51,7 +51,7 @@ def mk_library(device):
     )
     url = Foundation.NSURL.fileURLWithPath_(str(library_path))
     library, error = device.newLibraryWithURL_error_(url, None)
-    assert not error
+    assert library, error
     return library
 
 

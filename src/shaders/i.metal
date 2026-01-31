@@ -10,7 +10,7 @@ vertex float4 vertex_main(
 ) {
 
 	float4 world = instanceMatrices[instanceId] * vertices[vertexId];
-	world = world * viewProjectionMatrix;
+	world = viewProjectionMatrix * world;
 	return world;
 };
 

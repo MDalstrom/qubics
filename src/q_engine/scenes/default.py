@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from q_engine.application.render.mesh import Mesh, Transform, create
 from q_engine.ecs.components import CommandBuffer, World, Component
@@ -54,24 +55,22 @@ def _configure_spinning_sphere_archetype(
         mesh.vertices = sphere_vertices
 
 
-def _create_spinning_sphere_instance(cb: CommandBuffer, rng: np.random.Generator):
+def _create_spinning_sphere_instance(cb: CommandBuffer, i: float):
     entity = cb.create_entity()
     cb.add_component(entity, Mesh)
     cb.add_component(entity, Transform)
     cb.add_component(entity, AngularVelocity)
-
-    i = rng.random() * 10
-
+    
     @CommandBuffer.set_deferred(cb, entity, Transform)
     def set_transform(e, transform: Transform):
         transform.matrices[e.index] = np.eye(4, dtype=np.float32, order="F")
-        transform.matrices[e.index, 3, 0] = ((i % 4) / 4) * 10
-        transform.matrices[e.index, 3, 1] = ((i // 4) / 5) * 10
-        transform.matrices[e.index, 3, 2] = 10.0
+        rads = i * 2 * math.pi
+        transform.matrices[e.index, 3, 0] = math.sin(rads) * 10
+        transform.matrices[e.index, 3, 2] = math.cos(rads) * 10
 
     @CommandBuffer.set_deferred(cb, entity, AngularVelocity)
     def set_angular_velocity(e, ang_vel: AngularVelocity):
-        ang_vel.axes[e.index] = np.array([0, 1, 0], dtype=np.float32)
+        ang_vel.axes[e.index] = np.array([0, 1, 0, 0], dtype=np.float32)
         ang_vel.speeds[e.index] = np.pi / 2
 
 
@@ -89,26 +88,25 @@ def _create_camera(cb: CommandBuffer):
 
     @CommandBuffer.set_deferred(cb, camera_entity, Camera)
     def set_camera_props(e, camera: Camera):
-        camera.fov[e.index] = np.pi / 180 * 80
-        camera.near[e.index] = 0.01
-        camera.far[e.index] = 1000.0
+        camera.fov = np.pi / 180 * 80
+        camera.near = 0.01
+        camera.far = 1000.0
 
     @CommandBuffer.set_deferred(cb, camera_entity, CameraState)
     def set_camera_state(e, camera_state: CameraState):
-        camera_state.yaw_angle[e.index] = 0.0
-        camera_state.pitch_angle[e.index] = 0.0
+        camera_state.yaw_angle = 0.0
+        camera_state.pitch_angle = 0.0
 
 
 def bake(world: World):
     cb = CommandBuffer()
-    rng = np.random.default_rng()
 
     sphere_vertices = generate_uv_sphere_triangle_list_vertices(radius=1.0)
 
     _configure_spinning_sphere_archetype(cb, sphere_vertices)
 
     for _ in range(10):
-        _create_spinning_sphere_instance(cb, rng)
+        _create_spinning_sphere_instance(cb, _ / 10)
 
     _create_camera(cb)
 

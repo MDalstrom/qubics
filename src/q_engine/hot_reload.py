@@ -1,9 +1,9 @@
 import importlib
 from pathlib import Path
 import sys
-from typing import Callable, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar, Callable
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
 stoplist = {
     'q_engine.persistent'
@@ -25,11 +25,13 @@ def reload(source: str):
 
 def watch(fn: Callable):
     class ChangeHandler(FileSystemEventHandler):
-        def __init__(self, fn: Callable):
-            self.on_any_event = fn
+        def __init__(self):
+            pass
+        def on_any_event(self, event):
+            fn(event)
 
     obs = Observer()
-    handler = ChangeHandler(fn)
+    handler = ChangeHandler()
     obs.schedule(handler, '.', recursive=True)
     obs.start()
 

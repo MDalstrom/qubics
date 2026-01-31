@@ -1,8 +1,8 @@
 import numpy as np
-from q_engine.ecs.components import Component, World
+from q_engine.ecs.components import Component, World, component
 from q_engine.ecs.systems import query
+from q_engine.ecs.types import Float32x1, Float32x4
 from q_engine.application.render.mesh import Transform
-from q_engine.application.types import Vector3, Scalar, Quaternion
 
 
 def q_from_axis_angle(axis, angle):
@@ -40,10 +40,11 @@ def q_to_mat4(q):
     ], dtype=np.float32)
 
 
+@component
 class AngularVelocity(Component):
-    axes: Vector3
-    speeds: Scalar
-    orientations: Quaternion
+    axes: Float32x4
+    speeds: Float32x1
+    orientations: Float32x4
 
 
 def rotation_system(world: World, dt: float):

@@ -1,10 +1,7 @@
 import numpy as np
-from typing import Annotated, TypeAlias
-from numpy.typing import NDArray
+from q_engine.ecs.types import Float32x4x4
 
-Matrix4x4: TypeAlias = Annotated[NDArray[np.float32], "shape (4, 4)"]
-
-def mk_view(eye: np.ndarray, center: np.ndarray, up: np.ndarray) -> Matrix4x4:
+def mk_view(eye: np.ndarray, center: np.ndarray, up: np.ndarray) -> Float32x4x4:
     f = center - eye
     f = f / np.linalg.norm(f)
     s = np.cross(f, up)
@@ -53,7 +50,7 @@ def mk_ortho(size, aspect, far, near):
 
     return np.array([P,Q,R,S])
 
-def mk_perspective(fov, aspect, near, far):
+def mk_perspective(fov, aspect, near, far) -> Float32x4x4:
     f = 1.0 / np.tan(fov * 0.5)
 
     P, Q, R, S = [np.zeros(4, dtype=np.float32) for _ in range(4)]

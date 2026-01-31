@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 from collections import deque
 from functools import wraps
 from typing import Callable, Iterable, Protocol, TypeVar, get_args, get_origin
-from q_engine.ecs.components import World
+from q_engine.ecs.components import World, Count
 from time import time
 
 
