@@ -161,6 +161,10 @@ class State:
     app: Cocoa.NSApplication
     view: MetalKit.MTKView
 
+def get_aspect(state: State) -> float:
+    x, y = state.view.drawableSize()
+    return x / y
+
 def run(state: State, tick) -> None:
     view_delegate = mk_view_delegate(state.device, tick)
     app_delegate = mk_app_delegate()

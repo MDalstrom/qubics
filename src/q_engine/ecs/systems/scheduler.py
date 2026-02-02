@@ -1,37 +1,8 @@
+from q_engine.ecs.systems.types import Write
 from concurrent.futures import ThreadPoolExecutor
 from collections import deque
-from functools import wraps
-from typing import Callable, Iterable, Protocol, TypeVar, get_args, get_origin
-from q_engine.ecs.components import World, Count
-from time import time
-
-
-T = TypeVar("T")
-type Write[T] = T
-
-def query(fn: Callable):
-    @wraps(fn)
-    def wrapper(world: World) -> None:
-        dependencies = fn.__annotations__.values()
-        param_types = []
-        arches = list(world.archetypes)
-        for dependency in dependencies:
-            if get_origin(dependency) is Write:
-                dependency = get_args(dependency)[0]
-            param_types.append(dependency)
-            i = len(arches)
-            while i > 0:
-                arch = arches.pop(0)
-                if dependency in arch.types:
-                    arches.append(arch)
-                i = i - 1
-
-        for arch in arches:
-            fn(*[arch.components[param_type] for param_type in param_types])
-        return
-
-    return wrapper
-
+from typing import Callable, Iterable, get_args, get_origin
+from q_engine.ecs.world import World
 
 class SystemDesc:
     def __init__(self, reads: set[type], writes: set[type], fn: Callable) -> None:
@@ -67,7 +38,6 @@ class SystemDesc:
     @staticmethod
     def resolve(a: "SystemDesc", b: "SystemDesc") -> bool:
         return bool((a.writes & b.writes) or (a.writes & b.reads))
-
 
 def build_batches(
     systems: list[SystemDesc], resolve: Callable
@@ -111,50 +81,3 @@ def schedule(batches: list[list[Callable]]):
                     f.result()
 
     return tick
-
-
-class RenderingSystem(Protocol):
-    def __call__(self, world: World, alpha: float) -> None: ...
-
-
-class SimulationSystem(Protocol):
-    def __call__(self, world: World, dt: float) -> None: ...
-
-
-def aggregate(factories: list):
-    def create(*fc_args, **fc_kwargs):
-        systems = [fc(*fc_args, **fc_kwargs) for fc in factories]
-
-        def tick(*tick_args, **tick_kwargs):
-            for s in systems:
-                s(*tick_args, **tick_kwargs)
-
-        return tick
-
-    return create
-
-
-def assemble(bake: Callable, simulate_fc: Callable, render_fc: Callable, dt: float):
-    world = World()
-    bake(world)
-
-    accumulator = 0.0
-    last = None
-
-    def tick():
-        nonlocal last
-        nonlocal accumulator
-
-        current = time()
-        if last:
-            accumulator += current - last
-        last = current
-
-        while accumulator > dt:
-            simulate_fc(dt)(world)
-            accumulator -= dt
-
-        render_fc(alpha=accumulator / dt)(world)
-
-    return tick
-

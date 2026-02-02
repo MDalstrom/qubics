@@ -12,6 +12,7 @@ class generic_dyn_ndarray:
         })
 
 Float32x4x4 = generic_dyn_ndarray[np.float32, 4, 4]
+Float32x3x3 = generic_dyn_ndarray[np.float32, 3, 3]
 Float32x4 = generic_dyn_ndarray[np.float32, 4]
 Float32x3 = generic_dyn_ndarray[np.float32, 3]
 Float32x2 = generic_dyn_ndarray[np.float32, 2]

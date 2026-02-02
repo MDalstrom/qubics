@@ -1,19 +1,18 @@
-from q_engine.ecs.world import World
-import Metal
-from q_engine.application.render.camera import CameraCache
-from q_engine.application.transform import Transform
-from q_engine.ecs.components import Component, component
+from q_engine.ecs.components import component, Component
 from q_engine.ecs.systems.query import query
-from q_engine.units import Float32x4
+from q_engine.d2.transform import Transform
+from q_engine.application.render.camera import CameraCache
+from q_engine.ecs.world import World
+from q_engine.units import Float32x2, Float32x4
+import Metal
 
 
 @component
-class Mesh(Component):
-    vertices: Float32x4
+class Shape(Component):
+    vertices: Float32x2
     colors: Float32x4
 
-
-def mk_mesh_system(device, view, library):
+def mk_shape_system(device, view, library):
     pipeline_desc = Metal.MTLRenderPipelineDescriptor.alloc().init()
     pipeline_desc.setVertexFunction_(library.newFunctionWithName_("vertex_main"))
     pipeline_desc.setFragmentFunction_(library.newFunctionWithName_("fragment_main"))
@@ -45,7 +44,7 @@ def mk_mesh_system(device, view, library):
             )
             encoder.setVertexBuffer_offset_atIndex_(view_proj_buffer, 0, 3)
 
-            def mesh_system(transform: Transform, mesh: Mesh):
+            def shape_system(transform: Transform, mesh: Shape):
                 vertex_buffer = device.newBufferWithBytes_length_options_(
                     mesh.vertices.tobytes(),
                     mesh.vertices.nbytes,
@@ -73,7 +72,7 @@ def mk_mesh_system(device, view, library):
                     mesh.vertices.shape[0],
                     transform.matrices.shape[0],
                 )
-            query(mesh_system)(world)
+            query(shape_system)(world)
 
         query(camera_system)(world)
         encoder.endEncoding()

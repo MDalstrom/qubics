@@ -1,5 +1,5 @@
 BUILD := build/
-SHADERS := $(wildcard src/shaders/*.metal)
+SHADERS := $(wildcard src/**/*.metal)
 METALLIB := $(BUILD)default.metallib
 
 $(METALLIB): $(SHADERS)
@@ -18,7 +18,7 @@ BIN := .venv/bin/
 
 .PHONY: run test typecheck
 run: shaders dependencies
-	$(BIN)python -m q_engine.main --api=metal
+	$(BIN)python -m q_engine.main --api=metal --scene=2d
 test: dependencies
 	$(BIN)python -m unittest src/q_tests/test_ecs.py
 typecheck: dependencies
