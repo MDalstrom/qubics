@@ -1,0 +1,9 @@
+namespace ecs;
+
+table Count {
+  value: int;
+}
+
+table Removals {
+  mask: [byte];
+}

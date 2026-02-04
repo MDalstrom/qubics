@@ -1,25 +1,65 @@
 BUILD := build/
-SHADERS := $(wildcard src/**/*.metal)
-METALLIB := $(BUILD)default.metallib
+$(BUILD):
+	mkdir $(BUILD)
+
+#
+
+SHADERS := $(wildcard shaders/*.metal)
+METALLIB := $(BUILD)/default.metallib
 
 $(METALLIB): $(SHADERS)
-	mkdir $(BUILD) || rm -f $(METALLIB)
+	rm -f $(METALLIB)
 	xcrun -sdk macosx metal -g -frecord-sources $(SHADERS) -o $(METALLIB)
 shaders: $(METALLIB)
 
-.venv:
-	python3 -m venv .venv
-.venv/.lock: pyproject.toml .venv
-	.venv/bin/pip install -e .
-	touch .venv/.lock
-dependencies: .venv/.lock
+#
 
-BIN := .venv/bin/
+SCHEMAS := $(wildcard schemas/*.fbs)
+PYSCHEMAS := py/src/q_generated/
 
-.PHONY: run test typecheck
-run: shaders dependencies
-	$(BIN)python -m q_engine.main --api=metal --scene=2d
-test: dependencies
-	$(BIN)python -m unittest src/q_tests/test_ecs.py
-typecheck: dependencies
-	$(BIN)ty check --output-format concise
+$(PYSCHEMAS)__init__.py: $(SCHEMAS)
+	rm -r $(PYSCHEMAS)/* || true
+	flatc --python -o $(PYSCHEMAS) $(SCHEMAS)
+	touch $(PYSCHEMAS)__init__.py
+py-schemas: $(PYSCHEMAS)__init__.py
+
+#
+
+ECSLIB = $(BUILD)libecs_core.dylib
+
+$(ECSLIB): c/ecs_core.c c/ecs_core.h
+	gcc -Wall -Wextra -std=c11 -O2 -fPIC -shared c/ecs_core.c -o $(ECSLIB)
+c_lib: $(ECSLIB)
+
+#
+
+VENV := py/.venv/
+PYPROJECT := py/pyproject.toml
+
+$(VENV):
+	python3.13 -m venv $(VENV)
+
+$(VENV).lock: $(PYPROJECT) $(VENV)
+	$(VENV)bin/python -m pip install -e py
+	touch $(VENV).lock
+deps: $(VENV).lock
+
+$(VENV).devlock: $(PYPROJECT) $(VENV)
+	$(VENV)bin/python -m pip install -e "py[dev]"
+	touch $(VENV).devlock
+dev-deps: $(VENV).devlock
+
+ARGS := --api=metal --scene=simple_c --shaderslib="$(METALLIB)"
+
+.PHONY: play test typecheck
+play: shaders deps py-schemas c_lib
+	$(VENV)bin/python -m q_engine.main $(ARGS)
+test: dev-deps deps c_lib
+	$(VENV)bin/python -m unittest py/src/q_tests/test_ecs.py
+typecheck: dev-deps deps c_lib
+	cd py/ && .venv/bin/ty check . --output-format=concise
+
+#
+
+edit:
+	cd rs && cargo run

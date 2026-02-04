@@ -18,3 +18,5 @@ Float32x3 = generic_dyn_ndarray[np.float32, 3]
 Float32x2 = generic_dyn_ndarray[np.float32, 2]
 Float32x1 = generic_dyn_ndarray[np.float32]
 Boolean = generic_dyn_ndarray[np.bool, 1]
+Int32x1 = generic_dyn_ndarray[np.int32]
+

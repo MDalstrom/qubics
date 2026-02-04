@@ -49,5 +49,3 @@ def component(cls: type) -> type[Component]:
     setattr(cls, "assert_exist", assert_exist)
 
     return cls
-
-

@@ -8,13 +8,18 @@ dependencies = [
   "pyobjc-framework-Cocoa",
   "pyobjc-framework-Quartz",
   "numpy",
+  "toml",
+  "flatbuffers==25.12.19",
+  "fastapi==0.128.0",
+  "uvicorn==0.40.0",
 ]
 requires-python = ">=3.12"
 
-[dependency-groups]
+[proej-groups]
 dev = [
-  "ty>=0.0.14",
+  "ty>=0.0.14"
 ]
 
 [tool.ty.environment]
 extra-paths = ["typings"]
+

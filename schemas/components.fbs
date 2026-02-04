@@ -1,0 +1,48 @@
+include "units.fbs";
+
+namespace components;
+
+// 2D Transform component - stores 3x3 matrices for all entities
+table Transform2D {
+  matrices: [units.Matrix3x3];  // One matrix per entity
+}
+
+// 3D Transform component - stores 4x4 matrices for all entities
+table Transform3D {
+  matrices: [units.Matrix4x4];  // One matrix per entity
+}
+
+// Shape component - 2D vertices and colors
+table Shape {
+  vertices: [units.Vector2];  // One vertex per vertex (not per entity!)
+  colors: [units.Color];      // One color per vertex
+}
+
+// Mesh component - 3D vertices and colors
+table Mesh {
+  vertices: [units.Vector4];  // One vertex per vertex
+  colors: [units.Color];      // One color per vertex
+}
+
+// Perspective Camera component
+table PerspectiveCamera {
+  fov: [float];  // One fov per entity
+}
+
+// Orthographic Camera component
+table OrthographicCamera {
+  size: [float];  // One size per entity
+}
+
+// Viewport component
+table Viewport {
+  near: [float];  // One near per entity
+  far: [float];   // One far per entity
+}
+
+// Camera Cache - stores computed view-projection matrices
+table CameraCache {
+  view_projection: [units.Matrix4x4];  // One VP matrix per entity
+}
+
+root_type Transform2D;

@@ -5,7 +5,6 @@ import Metal
 import MetalKit
 import Quartz
 import objc
-from pathlib import Path
 import Foundation
 from q_engine import keys
 
@@ -45,11 +44,8 @@ def mk_device():
     return Metal.MTLCreateSystemDefaultDevice()
 
 
-def mk_library(device):
-    library_path = (
-        Path(__file__).resolve().parent.parent.parent / "build" / "default.metallib"
-    )
-    url = Foundation.NSURL.fileURLWithPath_(str(library_path))
+def mk_library(device, path):
+    url = Foundation.NSURL.fileURLWithPath_(str(path))
     library, error = device.newLibraryWithURL_error_(url, None)
     assert library, error
     return library
@@ -190,4 +186,5 @@ def run(state: State, tick) -> None:
         state.window,
     )
 
-    return state.app.run()
+    result = state.app.run()
+    return result

@@ -9,6 +9,8 @@ def get_config():
     parser.add_argument("--api")
     parser.add_argument("--scene", default="default")
     parser.add_argument("--ticks", default=120)
+    parser.add_argument("--shaderslib")
+    parser.add_argument("--ecslib")
     return parser.parse_args()
 
 
