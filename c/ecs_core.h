@@ -103,6 +103,9 @@ void chunk_iterator_free(ChunkIterator* iterator);
 /* Get component buffer (FlatBuffer blob) for a chunk - PRIMARY API */
 void* chunk_get_component_buffer(Chunk* chunk, ComponentTypeId type_id);
 
+/* Get chunk entity count */
+uint32_t chunk_get_count(Chunk* chunk);
+
 /* Set component buffer (used when initializing/updating FlatBuffer data) */
 bool chunk_set_component_buffer(Chunk* chunk, ComponentTypeId type_id, void* data, size_t size);
 

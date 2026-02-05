@@ -52,6 +52,9 @@ _lib.chunk_set_component_buffer.restype = c_bool
 _lib.chunk_get_component_buffer_size.argtypes = [Chunk_p, ComponentTypeId]
 _lib.chunk_get_component_buffer_size.restype = c_size_t
 
+_lib.chunk_get_count.argtypes = [Chunk_p]
+_lib.chunk_get_count.restype = c_uint32
+
 _lib.chunk_add_entity.argtypes = [Chunk_p, Entity]
 _lib.chunk_add_entity.restype = c_bool
 
@@ -179,6 +182,10 @@ class ChunkHandle:
     
     def remove_entity(self, index: int):
         _lib.chunk_remove_entity(self._handle, index)
+    
+    @property
+    def count(self) -> int:
+        return _lib.chunk_get_count(self._handle)
     
     @property
     def handle(self) -> Chunk_p:

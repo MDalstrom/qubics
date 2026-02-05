@@ -194,6 +194,10 @@ size_t chunk_get_component_buffer_size(Chunk* chunk, ComponentTypeId type_id) {
     return chunk->buffers[comp_index].size;
 }
 
+uint32_t chunk_get_count(Chunk* chunk) {
+    return chunk->count;
+}
+
 
 World* world_create(uint32_t default_chunk_capacity) {
     World* world = (World*)malloc(sizeof(World));
