@@ -52,6 +52,14 @@ static Archetype* archetype_create(ComponentType** component_types, uint32_t com
     
     memcpy(archetype->component_types, component_types, sizeof(ComponentType*) * component_count);
     
+    archetype->component_mask = 0;
+    for (uint32_t i = 0; i < component_count; i++) {
+        ComponentTypeId type_id = component_types[i]->type_id;
+        if (type_id < 64) {
+            archetype->component_mask |= (1ULL << type_id);
+        }
+    }
+    
     archetype->chunks = NULL;
     archetype->chunk_count = 0;
     archetype->chunk_capacity = 0;
@@ -359,26 +367,45 @@ bool world_entity_exists(World* world, Entity entity) {
 }
 
 ChunkIterator world_query_chunks(World* world, ComponentTypeId* component_types, uint32_t component_count) {
-    uint64_t hash = compute_component_hash(component_types, component_count);
+    uint64_t query_mask = 0;
+    for (uint32_t i = 0; i < component_count; i++) {
+        if (component_types[i] < 64) {
+            query_mask |= (1ULL << component_types[i]);
+        }
+    }
     
-    Archetype* archetype = NULL;
+    uint32_t total_chunk_count = 0;
     for (uint32_t i = 0; i < world->archetype_count; i++) {
-        if (world->archetypes[i]->hash == hash) {
-            if (archetype_matches(world->archetypes[i], component_types, component_count)) {
-                archetype = world->archetypes[i];
-                break;
+        total_chunk_count += world->archetypes[i]->chunk_count;
+    }
+    
+    if (total_chunk_count == 0) {
+        return (ChunkIterator){NULL, 0};
+    }
+    
+    Chunk** matching_chunks = (Chunk**)malloc(sizeof(Chunk*) * total_chunk_count);
+    uint32_t matching_count = 0;
+    
+    for (uint32_t i = 0; i < world->archetype_count; i++) {
+        Archetype* archetype = world->archetypes[i];
+        
+        if ((archetype->component_mask & query_mask) == query_mask) {
+            for (uint32_t j = 0; j < archetype->chunk_count; j++) {
+                matching_chunks[matching_count++] = archetype->chunks[j];
             }
         }
     }
     
-    if (!archetype) {
+    if (matching_count == 0) {
+        free(matching_chunks);
         return (ChunkIterator){NULL, 0};
     }
     
-    Chunk** chunks = (Chunk**)malloc(sizeof(Chunk*) * archetype->chunk_count);
-    memcpy(chunks, archetype->chunks, sizeof(Chunk*) * archetype->chunk_count);
+    if (matching_count < total_chunk_count) {
+        matching_chunks = (Chunk**)realloc(matching_chunks, sizeof(Chunk*) * matching_count);
+    }
     
-    return (ChunkIterator){chunks, archetype->chunk_count};
+    return (ChunkIterator){matching_chunks, matching_count};
 }
 
 void chunk_iterator_free(ChunkIterator* iterator) {

@@ -29,6 +29,7 @@ typedef struct {
     ComponentType** component_types;  /* Array of pointers to component types */
     uint32_t component_count;
     uint64_t hash;                    /* Hash of component type IDs for fast lookup */
+    uint64_t component_mask;          /* Bitmask of component type IDs */
     
     /* Per-archetype chunk tracking for fast iteration */
     struct Chunk** chunks;            /* Chunks with this archetype */

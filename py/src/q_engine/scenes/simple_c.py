@@ -1,7 +1,7 @@
 from flatbuffers.builder import Builder
 from q_generated.components import Shape as ShapeMod
 from q_generated.units import Vector2 as Vector2Mod
-from q_generated.units import Color as ColorMod # Added import for Color
+from q_generated.units import Color as ColorMod
 from q_generated.components.Shape import Shape
 
 from q_engine.ecs.c_bindings import WorldHandle
@@ -59,7 +59,10 @@ def get_tick():
     transmit = mk_socket(world)
     
     entity, comp_id = bake(world)
-    
+   
+    for c in world.query_chunks([world.register_component_type(t) for t in [Shape]]):
+        print(c)
+
     def tick(command_buffer):
         transmit(world)
         

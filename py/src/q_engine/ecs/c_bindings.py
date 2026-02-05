@@ -74,6 +74,8 @@ class WorldHandle:
             _lib.world_destroy(self._handle)
     
     def register_component_type(self, t: type) -> ComponentTypeId:
+        if t in self._component_types:
+            return self._component_types[t]
         name = t.__name__
         id = _lib.world_register_component_type(self._handle, name.encode('utf-8'))
         self._component_types[t] = id
