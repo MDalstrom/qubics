@@ -1,220 +1,419 @@
-mod world_state;
+mod generated;
+mod schema;
 
+pub use generated::*;
+
+use std::collections::HashMap;
 use tokio::net::TcpStream;
 use tokio::io::AsyncReadExt;
-use tokio::sync::mpsc;
-use ratatui::{
-    Frame,
-    layout::{Constraint, Layout},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-    style::{Color, Style},
-};
-use std::io;
-use crossterm::event::{self, Event, KeyCode};
-use world_state::WorldState;
+use crate::generated::network_generated::network::{root_as_batch, MessagePayload};
+use crate::schema::{read_schema_files, extract_objects};
+use flatbuffers_reflection::reflection;
 
-#[allow(dead_code, unused_imports, non_snake_case, clippy::all)]
-mod network_generated {
-    include!(concat!(env!("OUT_DIR"), "/components_generated.rs"));
+#[derive(Debug, Clone)]
+struct WorldState {
+    type_map: HashMap<u32, String>,
+    schema_map: HashMap<String, Vec<u8>>,
+    handshake_done: bool,
 }
 
-use network_generated::network::{root_as_batch, MessagePayload};
+impl WorldState {
+    fn new(schema_map: HashMap<String, Vec<u8>>) -> Self {
+        Self {
+            type_map: HashMap::new(),
+            schema_map,
+            handshake_done: false,
+        }
+    }
+
+    fn with_handshake(self, type_map: HashMap<u32, String>) -> Self {
+        Self {
+            type_map,
+            schema_map: self.schema_map,
+            handshake_done: true,
+        }
+    }
+}
 
 async fn receive_message(stream: &mut TcpStream) -> Result<Vec<u8>, std::io::Error> {
     let mut size_buf = [0u8; 4];
     stream.read_exact(&mut size_buf).await?;
-    
+
     let size = u32::from_le_bytes(size_buf) as usize;
-    
+
     let mut buf = vec![0u8; size];
     stream.read_exact(&mut buf).await?;
-    
+
     Ok(buf)
 }
 
-fn decode_message(data: &[u8], state: WorldState) -> WorldState {
-    match root_as_batch(data) {
-        Ok(batch) => {
-            if let Some(messages) = batch.messages() {
-                return messages.iter().fold(state, |acc_state, msg| {
-                    match msg.payload_type() {
-                        MessagePayload::Handshake => {
-                            if let Some(hs) = msg.payload_as_handshake() {
-                                let protocol_version = hs.protocol_version();
-                                let mut types = Vec::new();
-                                
-                                if let Some(comp_types) = hs.component_types() {
-                                    for info in comp_types.iter() {
-                                        types.push((
-                                            info.type_id(),
-                                            info.name().unwrap_or("<unnamed>").to_string(),
-                                            info.schema_hash(),
-                                        ));
-                                    }
-                                }
-                                
-                                acc_state.register_handshake(protocol_version, types)
-                            } else {
-                                acc_state
-                            }
-                        }
-                        MessagePayload::EntityUpdate => {
-                            if let Some(update) = msg.payload_as_entity_update() {
-                                let _entity_id = update.entity_id();
-                                let mut updates = Vec::new();
-                                
-                                if let Some(comp_updates) = update.component_updates() {
-                                    for comp in comp_updates.iter() {
-                                        let data = comp.data().map(|d| d.bytes().to_vec());
-                                        updates.push((comp.type_id(), data));
-                                    }
-                                }
-                                
-                                acc_state.apply_update(updates)
-                            } else {
-                                acc_state
-                            }
-                        }
-                        _ => acc_state,
-                    }
-                });
-            }
-            state
-        }
-        Err(e) => {
-            state.set_message(format!("Decode error: {:?}", e))
-        }
-    }
-}
-
-async fn network_task(tx: mpsc::UnboundedSender<Vec<u8>>) {
-    loop {
-        match TcpStream::connect("127.0.0.1:8080").await {
-            Ok(mut stream) => {
-                while let Ok(buf) = receive_message(&mut stream).await {
-                    if tx.send(buf).is_err() {
-                        break;
-                    }
-                }
-            }
-            Err(_e) => {
-            }
-        }
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-    }
-}
-
-fn render(frame: &mut Frame, state: &WorldState) {
-    let chunks = Layout::vertical([
-        Constraint::Length(4),
-        Constraint::Min(0),
-        Constraint::Length(4),
-        Constraint::Length(4),
-    ]).split(frame.area());
-    
-    let header = Paragraph::new(format!(
-        "ECS Inspector | Protocol v{} | {} components | {} total entities | {} with data | {}",
-        state.protocol_version,
-        state.components.len(),
-        state.total_entities(),
-        state.components_with_entities(),
-        if state.connected { "Connected" } else { "Disconnected" }
-    ))
-    .block(Block::default().borders(Borders::ALL).title("Status"))
-    .style(Style::default().fg(if state.connected { Color::Green } else { Color::Red }));
-    frame.render_widget(header, chunks[0]);
-    
-    let mut items: Vec<ListItem> = state.components.values()
-        .map(|c| {
-            let style = if c.entity_count > 0 {
-                Style::default().fg(Color::Green)
-            } else {
-                Style::default().fg(Color::Gray)
-            };
-
-            let mut text = format!(
-                "[{}] {} | {} entities | {} bytes | hash: {:016x}",
-                c.type_id, c.name, c.entity_count, c.last_data_size, c.schema_hash
-            );
-
-            if let Some(data) = &c.data {
-                if !data.is_empty() {
-                    text.push_str("\n  Data:");
-                    let num_floats_to_show = (data.len() / 4).min(6);
-                    for i in 0..num_floats_to_show {
-                        let start = i * 4;
-                        let end = start + 4;
-                        if data.len() >= end {
-                            let mut float_bytes = [0u8; 4];
-                            float_bytes.copy_from_slice(&data[start..end]);
-                            text.push_str(&format!(" {:.2}", f32::from_le_bytes(float_bytes)));
-                        }
-                    }
-                    if data.len() > 24 {
-                        text.push_str(" ...");
-                    }
-                }
-            }
-            
-            ListItem::new(text).style(style)
+fn parse_handshake(data: &[u8]) -> Option<HashMap<u32, String>> {
+    root_as_batch(data).ok()
+        .and_then(|batch| batch.messages())
+        .and_then(|messages| {
+            messages.iter()
+                .find(|msg| msg.payload_type() == MessagePayload::Handshake)
+                .and_then(|msg| msg.payload_as_handshake())
+                .map(|hs| {
+                    println!("Handshake received - Protocol v{}", hs.protocol_version());
+                    
+                    hs.component_types()
+                        .map(|comp_types| {
+                            println!("Registered {} component types:", comp_types.len());
+                            comp_types.iter()
+                                .filter_map(|info| {
+                                    let name = info.name()?.to_string();
+                                    let type_id = info.type_id();
+                                    println!("  [{}] {}", type_id, name);
+                                    Some((type_id, name))
+                                })
+                                .collect::<HashMap<u32, String>>()
+                        })
+                        .unwrap_or_default()
+                })
         })
-        .collect();
+}
+
+fn decode_field_value(table: &flatbuffers::Table, field: &reflection::Field, schema: &reflection::Schema, indent: usize) {
+    let voffset = field.offset();
+    let field_name = field.name();
+    let indent_str = "  ".repeat(indent);
     
-    if items.is_empty() {
-        items.push(ListItem::new("No components registered yet...").style(Style::default().fg(Color::Yellow)));
+    let field_type = field.type_();
+    match field_type.base_type() {
+        reflection::BaseType::Float => {
+            if let Some(val) = unsafe { table.get::<f32>(voffset, Some(0.0f32)) } {
+                println!("{}{}: {:.2}", indent_str, field_name, val);
+            }
+        }
+        reflection::BaseType::Double => {
+            if let Some(val) = unsafe { table.get::<f64>(voffset, Some(0.0f64)) } {
+                println!("{}{}: {:.2}", indent_str, field_name, val);
+            }
+        }
+        reflection::BaseType::Int => {
+            if let Some(val) = unsafe { table.get::<i32>(voffset, Some(0i32)) } {
+                println!("{}{}: {}", indent_str, field_name, val);
+            }
+        }
+        reflection::BaseType::UInt => {
+            if let Some(val) = unsafe { table.get::<u32>(voffset, Some(0u32)) } {
+                println!("{}{}: {}", indent_str, field_name, val);
+            }
+        }
+        reflection::BaseType::Long => {
+            if let Some(val) = unsafe { table.get::<i64>(voffset, Some(0i64)) } {
+                println!("{}{}: {}", indent_str, field_name, val);
+            }
+        }
+        reflection::BaseType::ULong => {
+            if let Some(val) = unsafe { table.get::<u64>(voffset, Some(0u64)) } {
+                println!("{}{}: {}", indent_str, field_name, val);
+            }
+        }
+        reflection::BaseType::Bool => {
+            if let Some(val) = unsafe { table.get::<bool>(voffset, Some(false)) } {
+                println!("{}{}: {}", indent_str, field_name, val);
+            }
+        }
+        reflection::BaseType::Vector => {
+            decode_vector_field(table, field, schema, indent);
+        }
+        reflection::BaseType::Obj => {
+            decode_object_field(table, field, schema, indent);
+        }
+        _ => {
+            println!("{}{}: <unsupported type>", indent_str, field_name);
+        }
+    }
+}
+
+fn decode_vector_field(table: &flatbuffers::Table, field: &reflection::Field, schema: &reflection::Schema, indent: usize) {
+    let voffset = field.offset();
+    let field_name = field.name();
+    let indent_str = "  ".repeat(indent);
+    
+    let field_type = field.type_();
+    let element_type = field_type.element();
+    
+    match element_type {
+        reflection::BaseType::Obj => {
+            let obj_def = schema.objects().get(field_type.index() as usize);
+            if obj_def.is_struct() {
+                // Read vector of structs manually
+                // 1. Get the offset to the vector from vtable
+                let vtable = unsafe { table.vtable() };
+                let vtable_size = vtable.num_bytes() as usize;
+                
+                if voffset as usize >= vtable_size {
+                    println!("{}{}: <field not in vtable>", indent_str, field_name);
+                    return;
+                }
+                
+                let field_offset_value = vtable.get(voffset);
+                if field_offset_value == 0 {
+                    println!("{}{}: 0 items", indent_str, field_name);
+                    return;
+                }
+                
+                // 2. Read the UOffset to the vector. It's a relative offset.
+                let buf = table.buf();
+                let uoffset_loc = table.loc() + field_offset_value as usize;
+                
+                if uoffset_loc + 4 > buf.len() {
+                    println!("{}{}: <offset out of bounds>", indent_str, field_name);
+                    return;
+                }
+                
+                let uoffset = u32::from_le_bytes([
+                    buf[uoffset_loc],
+                    buf[uoffset_loc + 1],
+                    buf[uoffset_loc + 2],
+                    buf[uoffset_loc + 3],
+                ]) as usize;
+                
+                // The vector data starts at uoffset_loc + uoffset
+                let vec_data_start = uoffset_loc + uoffset;
+                
+                if vec_data_start + 4 > buf.len() {
+                    println!("{}{}: <vector data out of bounds>", indent_str, field_name);
+                    return;
+                }
+                
+                // First 4 bytes at vec_data_start is the vector LENGTH (number of elements)
+                let vec_len = u32::from_le_bytes([
+                    buf[vec_data_start],
+                    buf[vec_data_start + 1],
+                    buf[vec_data_start + 2],
+                    buf[vec_data_start + 3],
+                ]) as usize;
+                
+                let struct_size = obj_def.bytesize() as usize;
+                
+                println!("{}{}: {} items (DEBUG: vec_data_start={}, uoffset={}, uoffset_loc={}, bytes=[{},{},{},{}])", 
+                    indent_str, field_name, vec_len, vec_data_start, uoffset, uoffset_loc,
+                    buf[vec_data_start], buf[vec_data_start + 1], buf[vec_data_start + 2], buf[vec_data_start + 3]);
+                
+                // The actual vector elements start at vec_data_start + 4
+                let elements_start = vec_data_start + 4;
+                
+                // 4. Decode each struct in the vector
+                for i in 0..vec_len {
+                    println!("{}  [{}]:", indent_str, i);
+                    let item_offset = elements_start + i * struct_size;
+                    
+                    if item_offset + struct_size > buf.len() {
+                        println!("{}    <out of bounds>", indent_str);
+                        continue;
+                    }
+                    
+                    // Recursively decode struct fields
+                    for struct_field in obj_def.fields() {
+                        decode_struct_field(buf, item_offset, &struct_field, indent + 2);
+                    }
+                }
+            }
+        }
+        _ => {
+            println!("{}{}: <vector of scalars>", indent_str, field_name);
+        }
+    }
+}
+
+fn decode_struct_field(buf: &[u8], base_offset: usize, field: &reflection::Field, indent: usize) {
+    let field_offset = field.offset() as usize;
+    let field_name = field.name();
+    let indent_str = "  ".repeat(indent);
+    let offset = base_offset + field_offset;
+    
+    let field_type = field.type_();
+    match field_type.base_type() {
+        reflection::BaseType::Float => {
+            if offset + 4 <= buf.len() {
+                let bytes = [buf[offset], buf[offset + 1], buf[offset + 2], buf[offset + 3]];
+                let val = f32::from_le_bytes(bytes);
+                println!("{}{}: {:.2}", indent_str, field_name, val);
+            }
+        }
+        reflection::BaseType::Double => {
+            if offset + 8 <= buf.len() {
+                let bytes = [
+                    buf[offset], buf[offset + 1], buf[offset + 2], buf[offset + 3],
+                    buf[offset + 4], buf[offset + 5], buf[offset + 6], buf[offset + 7],
+                ];
+                let val = f64::from_le_bytes(bytes);
+                println!("{}{}: {:.2}", indent_str, field_name, val);
+            }
+        }
+        reflection::BaseType::Int => {
+            if offset + 4 <= buf.len() {
+                let bytes = [buf[offset], buf[offset + 1], buf[offset + 2], buf[offset + 3]];
+                let val = i32::from_le_bytes(bytes);
+                println!("{}{}: {}", indent_str, field_name, val);
+            }
+        }
+        reflection::BaseType::UInt => {
+            if offset + 4 <= buf.len() {
+                let bytes = [buf[offset], buf[offset + 1], buf[offset + 2], buf[offset + 3]];
+                let val = u32::from_le_bytes(bytes);
+                println!("{}{}: {}", indent_str, field_name, val);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn decode_object_field(table: &flatbuffers::Table, field: &reflection::Field, schema: &reflection::Schema, indent: usize) {
+    let voffset = field.offset();
+    let field_name = field.name();
+    let indent_str = "  ".repeat(indent);
+    
+    let field_type = field.type_();
+    if let Some(nested_table) = unsafe { table.get::<flatbuffers::ForwardsUOffset<flatbuffers::Table>>(voffset, None) } {
+        let obj_def = schema.objects().get(field_type.index() as usize);
+        println!("{}{}:", indent_str, field_name);
+        decode_table_recursive(&nested_table, &obj_def, schema, indent + 1);
+    }
+}
+
+fn decode_table_recursive(table: &flatbuffers::Table, obj_def: &reflection::Object, schema: &reflection::Schema, indent: usize) {
+    for field in obj_def.fields() {
+        decode_field_value(table, &field, schema, indent);
+    }
+}
+
+fn decode_component(bytes: &[u8], comp_name: &str, schema_map: &HashMap<String, Vec<u8>>) {
+    println!("  Rust received {} bytes: {:?}", bytes.len(), &bytes[..bytes.len().min(60)]);
+    
+    // Find schema for this component
+    let schema_bytes = schema_map.values()
+        .find_map(|bytes| {
+            reflection::root_as_schema(bytes).ok()
+                .filter(|schema| {
+                    schema.objects().iter().any(|obj| obj.name() == comp_name)
+                })
+                .map(|_| bytes.as_slice())
+        });
+    
+    if let Some(schema_bytes) = schema_bytes {
+        if let Ok(schema) = reflection::root_as_schema(schema_bytes) {
+            if let Some(obj_def) = schema.objects().iter().find(|obj| obj.name() == comp_name) {
+                // Read the root offset from the buffer
+                if bytes.len() < 4 {
+                    println!("  <invalid buffer: too short, {} bytes>", bytes.len());
+                    return;
+                }
+                
+                // A flatbuffer buffer contains a u32 offset at the start, which points to the root table.
+                let root_offset = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
+                
+                // The table is located at `root_offset` from the start of the buffer.
+                let table_loc = root_offset;
+                
+                if table_loc >= bytes.len() {
+                    println!("  <invalid buffer: table location {} out of bounds for {} bytes>", table_loc, bytes.len());
+                    return;
+                }
+                
+                let table = unsafe { flatbuffers::Table::new(bytes, table_loc) };
+                decode_table_recursive(&table, &obj_def, &schema, 1);
+                return;
+            }
+        }
     }
     
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Components"));
-    frame.render_widget(list, chunks[1]);
-    
-    let debug = Paragraph::new(state.debug_info.clone())
-        .block(Block::default().borders(Borders::ALL).title("Debug"))
-        .style(Style::default().fg(Color::Cyan));
-    frame.render_widget(debug, chunks[2]);
-    
-    let footer = Paragraph::new(format!(
-        "{} | Msg #{} | Press 'q' to quit",
-        state.last_message,
-        state.message_count
-    ))
-    .block(Block::default().borders(Borders::ALL).title("Last Message"));
-    frame.render_widget(footer, chunks[3]);
+    println!("  <unknown component: {}>", comp_name);
+}
+
+fn process_entity_updates(data: &[u8], type_map: &HashMap<u32, String>, schema_map: &HashMap<String, Vec<u8>>) {
+    root_as_batch(data).ok()
+        .and_then(|batch| batch.messages())
+        .into_iter()
+        .flat_map(|messages| messages.iter())
+        .filter(|msg| msg.payload_type() == MessagePayload::EntityUpdate)
+        .filter_map(|msg| msg.payload_as_entity_update())
+        .for_each(|update| {
+            let entity_id = update.entity_id();
+            
+            update.component_updates()
+                .into_iter()
+                .flat_map(|comp_updates| comp_updates.iter())
+                .for_each(|comp| {
+                    let type_id = comp.type_id();
+                    let comp_name = type_map.get(&type_id)
+                        .map(|s| s.as_str())
+                        .unwrap_or("<unknown>");
+
+                    println!("\n[Entity {}] {}", entity_id, comp_name);
+                    
+                    comp.data()
+                        .map(|data_vec| data_vec.bytes())
+                        .map(|bytes| decode_component(bytes, comp_name, schema_map))
+                        .unwrap_or_else(|| println!("  <no data>"));
+                });
+        });
+}
+
+async fn process_message(data: Vec<u8>, state: WorldState) -> WorldState {
+    if data.is_empty() {
+        return state;
+    }
+
+    if !state.handshake_done {
+        parse_handshake(&data)
+            .map(|type_map| {
+                println!();
+                WorldState {
+                    type_map,
+                    schema_map: state.schema_map.clone(),
+                    handshake_done: true,
+                }
+            })
+            .unwrap_or(state)
+    } else {
+        process_entity_updates(&data, &state.type_map, &state.schema_map);
+        state
+    }
+}
+
+async fn connection_loop(address: &str, schema_map: HashMap<String, Vec<u8>>) {
+    let mut state = WorldState::new(schema_map.clone());
+
+    loop {
+        println!("Connecting to {}...", address);
+        
+        match TcpStream::connect(address).await {
+            Ok(mut stream) => {
+                println!("Connected!\n");
+                
+                loop {
+                    match receive_message(&mut stream).await {
+                        Ok(data) => {
+                            state = process_message(data, state).await;
+                        }
+                        Err(_) => {
+                            println!("Connection lost, reconnecting...\n");
+                            state = WorldState::new(schema_map.clone());
+                            break;
+                        }
+                    }
+                }
+            }
+            Err(_) => {
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            }
+        }
+    }
 }
 
 #[tokio::main]
-async fn main() -> io::Result<()> {
-    let (tx, mut rx) = mpsc::unbounded_channel();
-    
-    tokio::spawn(async move {
-        network_task(tx).await;
-    });
-    
-    let mut terminal = ratatui::init();
-    terminal.clear()?;
-    
-    let mut state = WorldState::new().set_message("Connecting to server...".to_string());
-    
-    loop {
-        while let Ok(buf) = rx.try_recv() {
-            if !buf.is_empty() {
-                state = decode_message(&buf, state);
-            } else {
-                state = state.set_connected(true);
-            }
-        }
-        
-        terminal.draw(|frame| render(frame, &state))?;
-        
-        if event::poll(std::time::Duration::from_millis(16))? {
-            if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
-                    break;
-                }
-            }
-        }
-    }
-    
-    ratatui::restore();
+async fn main() -> std::io::Result<()> {
+    let schema_map = read_schema_files("./build/bfbs")?;
+    let _objects_map = extract_objects(schema_map.clone());
+    println!("Loaded schema objects\n");
+
+    connection_loop("127.0.0.1:8080", schema_map).await;
+
     Ok(())
 }
+

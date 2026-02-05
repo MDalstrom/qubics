@@ -5,7 +5,7 @@ $(BUILD):
 #
 
 SHADERS := $(wildcard shaders/*.metal)
-METALLIB := $(BUILD)/default.metallib
+METALLIB := $(BUILD)default.metallib
 
 $(METALLIB): $(SHADERS)
 	rm -f $(METALLIB)
@@ -15,13 +15,27 @@ shaders: $(METALLIB)
 #
 
 SCHEMAS := $(wildcard schemas/*.fbs)
-PYSCHEMAS := py/src/q_generated/
 
+BSCHEMAS := $(BUILD)bfbs
+$(BSCHEMAS).lock: $(SCHEMAS)
+	rm $(wildcard $(BSCHEMAS)/*.bfbs) || true
+	flatc -b --schema -o $(BSCHEMAS) $(SCHEMAS)
+	touch $(BSCHEMAS).lock
+b-schemas: $(BSCHEMAS).lock
+
+PYSCHEMAS := py/src/q_generated/
 $(PYSCHEMAS)__init__.py: $(SCHEMAS)
-	rm -r $(PYSCHEMAS)/* || true
+	rm -r $(PYSCHEMAS)* || true
 	flatc --python -o $(PYSCHEMAS) $(SCHEMAS)
 	touch $(PYSCHEMAS)__init__.py
 py-schemas: $(PYSCHEMAS)__init__.py
+
+RSSCHEMAS := rs/src/generated/
+$(RSSCHEMAS).lock: $(SCHEMAS)
+	rm -r $(RSSCHEMAS)* || true
+	flatc --rust -o $(RSSCHEMAS) $(SCHEMAS)
+	touch $(RSSCHEMAS).lock
+rs-schemas: $(RSSCHEMAS).lock
 
 #
 
@@ -61,5 +75,6 @@ typecheck: dev-deps deps c_lib
 
 #
 
-edit:
-	cd rs && cargo run
+edit: b-schemas rs-schemas
+	export "RUST_BACKTRACE=1" && \
+	cargo run --manifest-path rs/Cargo.toml --target-dir ../$(BUILD)

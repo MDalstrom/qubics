@@ -1,12 +1,14 @@
+from logging import Logger
 from q_engine.ecs.c_bindings import WorldHandle
-from q_engine.server.protocol import NetworkServer
+from q_engine.server.protocol import NetworkWorld
 from typing import Callable
 from socket import socket as Socket
 import socket
 import select
 
+logger = Logger('')
 
-def mk_socket(net_server: NetworkServer) -> Callable[[WorldHandle], None]:
+def mk_socket(net_server: NetworkWorld) -> Callable[[WorldHandle], None]:
     sock = Socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.setblocking(False)

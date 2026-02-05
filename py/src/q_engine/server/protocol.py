@@ -1,3 +1,4 @@
+from typing import override
 from q_engine.ecs.c_bindings import WorldHandle
 import flatbuffers
 import q_generated.network.ComponentTypeInfo as ComponentTypeInfoMod
@@ -22,23 +23,30 @@ def hash_schema(component_name: str) -> int:
     return int(hashlib.md5(component_name.encode()).hexdigest()[:16], 16)
 
 
-class NetworkServer:
+class NetworkWorld(WorldHandle):
     def __init__(self, world: WorldHandle):
-        self.world = world
+        super().__init__()
         self.type_registry = {}
         self.protocol_version = 1
     
-    def register_component_type(self, component_class) -> int:
-        name = component_class.__name__
-        type_id = self.world.register_component_type(component_class)
-        self.type_registry[name] = type_id
+    @override
+    def register_component_type(self, t: type):
+        type_id = self.type_registry.get(t)
+        if not type_id:
+            type_id = super().register_component_type(t)
+            self.type_registry[t] = type_id
         return type_id
-    
+
     def build_handshake(self) -> bytes:
         builder = flatbuffers.Builder(1024)
         
         type_infos = []
-        for name, type_id in self.type_registry.items():
+        for t, type_id in self.type_registry.items():
+            # Extract namespace from module path: q_generated.components.Shape -> components.Shape
+            module_parts = t.__module__.split('.')
+            namespace = module_parts[-2] if len(module_parts) >= 2 else ""
+            name = f"{namespace}.{t.__name__}" if namespace else t.__name__
+            
             name_offset = builder.CreateString(name)
             ComponentTypeInfoMod.ComponentTypeInfoStart(builder)
             ComponentTypeInfoMod.ComponentTypeInfoAddTypeId(builder, type_id)
@@ -147,6 +155,9 @@ class NetworkClient:
             local_type_id = self.remote_to_local[remote_type_id]
             
             data = comp_update.DataAsNumpy().tobytes()
+            
+            # DEBUG: Print what Python sends
+            print(f"Python sending {len(data)} bytes: {list(data[:60])}")
             
             for chunk in self.world.query_chunks([local_type_id]):
                 chunk.set_component_buffer(local_type_id, data)
