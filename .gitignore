@@ -2,3 +2,4 @@ todo.md
 build
 .idea/
 .DS_Store
+**/q_generated/

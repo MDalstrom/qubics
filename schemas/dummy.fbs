@@ -1,7 +1,0 @@
-include "units.fbs";
-
-namespace dummy;
-
-table Dummy {
-  index_field: [units.Vector4];
-}

@@ -19,23 +19,30 @@ SCHEMAS := $(wildcard schemas/*.fbs)
 BSCHEMAS := $(BUILD)bfbs
 $(BSCHEMAS).lock: $(SCHEMAS)
 	rm $(wildcard $(BSCHEMAS)/*.bfbs) || true
-	flatc -b --schema -o $(BSCHEMAS) $(SCHEMAS)
+	flatc -b --schema \
+		-o $(BSCHEMAS) \
+		$(SCHEMAS)
 	touch $(BSCHEMAS).lock
 b-schemas: $(BSCHEMAS).lock
 
 PYSCHEMAS := py/src/q_generated/
-$(PYSCHEMAS)__init__.py: $(SCHEMAS)
+$(PYSCHEMASLOCK)__init__.py: $(SCHEMAS)
 	rm -r $(PYSCHEMAS)* || true
-	flatc --python -o $(PYSCHEMAS) $(SCHEMAS)
-	touch $(PYSCHEMAS)__init__.py
+	flatc --python \
+		-o $(PYSCHEMAS)../ \
+		--python \
+		--python-typing \
+		--python-gen-numpy \
+		$(SCHEMAS)
 py-schemas: $(PYSCHEMAS)__init__.py
 
-RSSCHEMAS := rs/src/generated/
-$(RSSCHEMAS).lock: $(SCHEMAS)
+RSSCHEMAS := rs/src/q_generated/
+$(RSSCHEMAS)mod.rs: $(SCHEMAS)
 	rm -r $(RSSCHEMAS)* || true
-	flatc --rust -o $(RSSCHEMAS) $(SCHEMAS)
-	touch $(RSSCHEMAS).lock
-rs-schemas: $(RSSCHEMAS).lock
+	flatc --rust \
+		-o $(RSSCHEMAS) \
+		$(SCHEMAS)
+rs-schemas: $(RSSCHEMAS)mod.rs
 
 #
 

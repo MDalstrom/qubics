@@ -2,9 +2,13 @@ from q_engine.bootstrap import get_config
 from q_engine.metal import mk_library
 from q_engine.persistent.metal import state as metal_state
 from q_engine.d2.render.shape import mk_shape_system
+from q_engine.application.render.camera import mk_orthographic
 from flatbuffers.builder import Builder
 from q_generated.components import Shape as ShapeMod
 from q_generated.components import Transform2D as Transform2DMod
+from q_generated.components import Transform3D as Transform3DMod
+from q_generated.components import OrthographicCamera as OrthographicCameraMod
+from q_generated.components import Viewport as ViewportMod
 from q_generated.components import CameraCache as CameraCacheMod
 from q_generated.units import Vector2 as Vector2Mod
 from q_generated.units import Color as ColorMod
@@ -12,6 +16,9 @@ from q_generated.units import Matrix3x3 as Matrix3x3Mod
 from q_generated.units import Matrix4x4 as Matrix4x4Mod
 from q_generated.components.Shape import Shape
 from q_generated.components.Transform2D import Transform2D
+from q_generated.components.Transform3D import Transform3D
+from q_generated.components.OrthographicCamera import OrthographicCamera
+from q_generated.components.Viewport import Viewport
 from q_generated.components.CameraCache import CameraCache
 
 from q_engine.ecs.c_bindings import WorldHandle
@@ -24,37 +31,82 @@ import numpy as np
 def bake(world):
     # Register component types
     shape_comp_id = world.register_component_type(Shape)
-    transform_comp_id = world.register_component_type(Transform2D)
-    camera_comp_id = world.register_component_type(CameraCache)
+    transform2d_comp_id = world.register_component_type(Transform2D)
+    transform3d_comp_id = world.register_component_type(Transform3D)
+    camera_comp_id = world.register_component_type(OrthographicCamera)
+    viewport_comp_id = world.register_component_type(Viewport)
+    cache_comp_id = world.register_component_type(CameraCache)
     
-    # Create camera entity
-    camera_entity = world.create_entity([camera_comp_id])
+    # Create camera entity with Transform3D, OrthographicCamera, Viewport, and CameraCache
+    camera_entity = world.create_entity([transform3d_comp_id, camera_comp_id, viewport_comp_id, cache_comp_id])
     
-    # Create camera cache with identity view-projection matrix
+    # Build camera transform (identity matrix at origin)
+    camera_transform_builder = Builder()
+    Transform3DMod.StartMatricesVector(camera_transform_builder, 1)
+    Matrix4x4Mod.CreateMatrix4x4(camera_transform_builder,
+        1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, -5.0, 1.0
+    )
+    transform_offset = camera_transform_builder.EndVector()
+    Transform3DMod.Transform3DStart(camera_transform_builder)
+    Transform3DMod.AddMatrices(camera_transform_builder, transform_offset)
+    transform_obj = Transform3DMod.Transform3DEnd(camera_transform_builder)
+    camera_transform_builder.Finish(transform_obj)
+    camera_transform_data = bytes(camera_transform_builder.Output())
+    
+    # Build orthographic camera (size = 1.0)
     camera_builder = Builder()
-    identity_matrix = [
+    OrthographicCameraMod.StartSizeVector(camera_builder, 1)
+    camera_builder.PrependFloat32(1.0)
+    size_offset = camera_builder.EndVector()
+    OrthographicCameraMod.OrthographicCameraStart(camera_builder)
+    OrthographicCameraMod.AddSize(camera_builder, size_offset)
+    camera_obj = OrthographicCameraMod.OrthographicCameraEnd(camera_builder)
+    camera_builder.Finish(camera_obj)
+    camera_data = bytes(camera_builder.Output())
+    
+    # Build viewport (near = 0.1, far = 100.0)
+    viewport_builder = Builder()
+    ViewportMod.StartNearVector(viewport_builder, 1)
+    viewport_builder.PrependFloat32(0.1)
+    near_offset = viewport_builder.EndVector()
+    ViewportMod.StartFarVector(viewport_builder, 1)
+    viewport_builder.PrependFloat32(100.0)
+    far_offset = viewport_builder.EndVector()
+    ViewportMod.ViewportStart(viewport_builder)
+    ViewportMod.AddNear(viewport_builder, near_offset)
+    ViewportMod.AddFar(viewport_builder, far_offset)
+    viewport_obj = ViewportMod.ViewportEnd(viewport_builder)
+    viewport_builder.Finish(viewport_obj)
+    viewport_data = bytes(viewport_builder.Output())
+    
+    # Build initial cache (identity matrix)
+    cache_builder = Builder()
+    CameraCacheMod.StartViewProjectionVector(cache_builder, 1)
+    Matrix4x4Mod.CreateMatrix4x4(cache_builder,
         1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 0.0,
         0.0, 0.0, 1.0, 0.0,
         0.0, 0.0, 0.0, 1.0
-    ]
+    )
+    vp_offset = cache_builder.EndVector()
+    CameraCacheMod.CameraCacheStart(cache_builder)
+    CameraCacheMod.AddViewProjection(cache_builder, vp_offset)
+    cache_obj = CameraCacheMod.CameraCacheEnd(cache_builder)
+    cache_builder.Finish(cache_obj)
+    cache_data = bytes(cache_builder.Output())
     
-    CameraCacheMod.StartViewProjectionVector(camera_builder, 1)
-    Matrix4x4Mod.CreateMatrix4x4(camera_builder, *identity_matrix)
-    vp_offset = camera_builder.EndVector()
-    
-    CameraCacheMod.CameraCacheStart(camera_builder)
-    CameraCacheMod.AddViewProjection(camera_builder, vp_offset)
-    camera_obj = CameraCacheMod.CameraCacheEnd(camera_builder)
-    
-    camera_builder.Finish(camera_obj)
-    camera_data = bytes(camera_builder.Output())
-    
-    for chunk in world.query_chunks([camera_comp_id]):
+    # Set camera component buffers
+    for chunk in world.query_chunks([transform3d_comp_id, camera_comp_id, viewport_comp_id, cache_comp_id]):
+        chunk.set_component_buffer(transform3d_comp_id, camera_transform_data)
         chunk.set_component_buffer(camera_comp_id, camera_data)
+        chunk.set_component_buffer(viewport_comp_id, viewport_data)
+        chunk.set_component_buffer(cache_comp_id, cache_data)
     
     # Create shape entity with transform
-    shape_entity = world.create_entity([shape_comp_id, transform_comp_id])
+    shape_entity = world.create_entity([shape_comp_id, transform2d_comp_id])
     
     # Build shape component
     shape_builder = Builder()
@@ -107,10 +159,10 @@ def bake(world):
     transform_builder.Finish(transform_obj)
     transform_data = bytes(transform_builder.Output())
     
-    # Set component buffers
-    for chunk in world.query_chunks([shape_comp_id, transform_comp_id]):
+    # Set shape component buffers
+    for chunk in world.query_chunks([shape_comp_id, transform2d_comp_id]):
         chunk.set_component_buffer(shape_comp_id, shape_data)
-        chunk.set_component_buffer(transform_comp_id, transform_data)
+        chunk.set_component_buffer(transform2d_comp_id, transform_data)
 
     return shape_entity, shape_comp_id
 
@@ -124,8 +176,10 @@ def get_tick(state = metal_state, config = get_config()):
 
     library = mk_library(state.device, config.shaderslib)
     s_render = mk_shape_system(state.device, state.view, library)
+    s_camera = mk_orthographic(lambda: 1.0)  # Aspect ratio 1:1
 
     def tick(command_buffer):
+        s_camera(world)  # Update camera view-projection matrix
         s_render(world, command_buffer)
 
         transmit(world)
@@ -139,4 +193,3 @@ def get_tick(state = metal_state, config = get_config()):
         transmit.broadcast(update)
         
     return tick
-

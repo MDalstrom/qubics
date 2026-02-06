@@ -1,4 +1,3 @@
-use crate::generated::network_generated::network::{root_as_batch, MessagePayload};
 use flatbuffers_reflection::reflection;
 use std::collections::HashMap;
 use std::fmt::Write;

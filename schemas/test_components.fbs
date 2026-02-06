@@ -1,9 +1,0 @@
-include "units.fbs";
-
-namespace components;
-
-table TestData {
-  values: [units.Vector3];
-}
-
-root_type TestData;

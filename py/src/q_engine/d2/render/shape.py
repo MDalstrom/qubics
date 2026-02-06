@@ -1,7 +1,7 @@
+from q_engine.ecs.c_bindings import WorldHandle
 from q_generated.components.Shape import Shape
 from q_generated.components.Transform2D import Transform2D
 from q_generated.components.CameraCache import CameraCache
-from q_engine.ecs.world import World
 from q_generated.units.Vector4 import Vector4
 import Metal
 import numpy as np
@@ -25,7 +25,7 @@ def mk_shape_system(device, view, library):
     pipeline, error = device.newRenderPipelineStateWithDescriptor_error_(pipeline_desc, None)
     assert pipeline, error
 
-    def system(world: World, command_buffer):
+    def system(world: WorldHandle, command_buffer):
         rpd = view.currentRenderPassDescriptor()
         encoder = command_buffer.renderCommandEncoderWithDescriptor_(rpd)
         encoder.setRenderPipelineState_(pipeline)
@@ -50,16 +50,16 @@ def mk_shape_system(device, view, library):
                         [m2.X(), m2.Y(), m2.Z(), m2.W()],
                         [m3.X(), m3.Y(), m3.Z(), m3.W()]
                     ], dtype=np.float32)
+                    print("[shape] camera VP matrix:", vp_matrix)
                 break
         
         view_proj_buffer = device.newBufferWithBytes_length_options_(
-            vp_matrix.tobytes(),
+            vp_matrix.T.tobytes(),
             vp_matrix.nbytes,
             Metal.MTLResourceStorageModeManaged,
         )
         encoder.setVertexBuffer_offset_atIndex_(view_proj_buffer, 0, 3)
 
-        # Query for shapes with transforms
         shape_comp_id = world.register_component_type(Shape)
         transform_comp_id = world.register_component_type(Transform2D)
         
@@ -76,6 +76,7 @@ def mk_shape_system(device, view, library):
             vertex_count = shape.VerticesLength()
             if vertex_count == 0:
                 continue
+            print(f"[shape] chunk vertices={vertex_count} transforms={transform.MatricesLength()}")
             
             vertices = np.zeros((vertex_count, 2), dtype=np.float32)
             colors = np.zeros((vertex_count, 4), dtype=np.float32)
@@ -101,7 +102,6 @@ def mk_shape_system(device, view, library):
             )
             encoder.setVertexBuffer_offset_atIndex_(color_buffers, 0, 1)
 
-            # Get transform matrices
             matrix_count = transform.MatricesLength()
             for mat_idx in range(max(1, matrix_count)):
                 if matrix_count > 0:
@@ -114,12 +114,12 @@ def mk_shape_system(device, view, library):
                         [m1.X(), m1.Y(), m1.Z(), 0.0],
                         [m2.X(), m2.Y(), m2.Z(), 0.0],
                         [0.0, 0.0, 0.0, 1.0]
-                    ], dtype=np.float32)
+                    ], dtype=np.float32, order='F')
                 else:
-                    transform_mat = np.eye(4, dtype=np.float32)
+                    transform_mat = np.eye(4, order='F', dtype=np.float32)
                 
                 instance_buffer = device.newBufferWithBytes_length_options_(
-                    transform_mat.tobytes(),
+                    transform_mat.T.tobytes(),
                     transform_mat.nbytes,
                     Metal.MTLResourceStorageModeManaged,
                 )

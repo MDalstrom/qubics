@@ -1,4 +1,4 @@
-namespace units;
+namespace q_generated.units;
 
 struct Vector4 {
   x: float;

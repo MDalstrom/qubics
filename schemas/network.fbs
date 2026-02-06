@@ -1,4 +1,4 @@
-namespace network;
+namespace q_generated.network;
 
 table ComponentTypeInfo {
   type_id: uint32;
