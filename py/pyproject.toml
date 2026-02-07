@@ -15,7 +15,7 @@ dependencies = [
 ]
 requires-python = ">=3.12"
 
-[proej-groups]
+[project.optional-dependencies]
 dev = [
   "ty>=0.0.14"
 ]

@@ -70,7 +70,10 @@ $(VENV).devlock: $(PYPROJECT) $(VENV)
 	touch $(VENV).devlock
 dev-deps: $(VENV).devlock
 
-ARGS := --api=metal --scene=simple_c --shaderslib="$(METALLIB)"
+ARGS := --api=metal \
+	--scene=simple_c \
+	--shaderslib="$(METALLIB)" \
+	--ecslib="$(ECSLIB)"
 
 .PHONY: play test typecheck test_ecs
 test_ecs: c/ecs.c c/ecs.h c/test_ecs.c
