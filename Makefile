@@ -26,7 +26,7 @@ $(BSCHEMAS).lock: $(SCHEMAS)
 b-schemas: $(BSCHEMAS).lock
 
 PYSCHEMAS := py/src/q_generated/
-$(PYSCHEMASLOCK)__init__.py: $(SCHEMAS)
+$(PYSCHEMAS)__init__.py: $(SCHEMAS)
 	rm -r $(PYSCHEMAS)* || true
 	flatc --python \
 		-o $(PYSCHEMAS)../ \
@@ -46,10 +46,10 @@ rs-schemas: $(RSSCHEMAS)mod.rs
 
 #
 
-ECSLIB = $(BUILD)libecs_core.dylib
+ECSLIB = $(BUILD)ecs.dylib
 
-$(ECSLIB): c/ecs_core.c c/ecs_core.h
-	gcc -Wall -Wextra -std=c11 -O2 -fPIC -shared c/ecs_core.c -o $(ECSLIB)
+$(ECSLIB): c/ecs.c c/ecs.h
+	gcc -Wall -Wextra -std=c11 -O2 -fPIC -shared c/ecs.c -o $(ECSLIB)
 c_lib: $(ECSLIB)
 
 #
@@ -72,11 +72,15 @@ dev-deps: $(VENV).devlock
 
 ARGS := --api=metal --scene=simple_c --shaderslib="$(METALLIB)"
 
-.PHONY: play test typecheck
+.PHONY: play test typecheck test_ecs
+test_ecs: c/ecs.c c/ecs.h c/test_ecs.c
+	gcc -Wall -Wextra -std=c11 -g -o build/test_ecs c/ecs.c c/test_ecs.c
+	./build/test_ecs
+
 play: shaders deps py-schemas c_lib
 	$(VENV)bin/python -m q_engine.main $(ARGS)
 test: dev-deps deps c_lib
-	$(VENV)bin/python -m unittest py/src/q_tests/test_ecs.py
+	PYTHONPATH=py/src $(VENV)bin/python -m unittest q_tests.test_ecs
 typecheck: dev-deps deps c_lib
 	cd py/ && .venv/bin/ty check . --output-format=concise
 
