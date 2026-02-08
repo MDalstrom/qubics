@@ -1,108 +1,243 @@
 #include "ecs.h"
-
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 
-// Define some components
-typedef struct {
-    float x, y;
-} Position;
+void test_create_and_remove_single_entity() {
+  printf("Running test: %s\n", __FUNCTION__);
+  World *world = world_create();
+  assert(world != NULL);
+  assert(world->containers_count == 0);
 
-typedef struct {
-    float dx, dy;
-} Velocity;
+  ComponentDescriptor *pos = component_describe(sizeof(float) * 2);
+  Archetype archetype = {.descriptors = &pos, .length = 1};
+
+  Entity e = entity_create(world, archetype);
+  assert(world->containers_count == 1);
+  assert(world->containers[0].chunks_count == 1);
+  assert(world->containers[0].chunks[0].entities_count == 1);
+  assert(e.chunk == world->containers[0].chunks);
+  assert(e.idx == 0);
+
+  entity_remove(e);
+  assert(world->containers[0].chunks[0].entities_count == 0);
+
+  world_destroy(world);
+  printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_create_entity_fills_chunk() {
+  printf("Running test: %s\n", __FUNCTION__);
+  World *world = world_create();
+  ComponentDescriptor *cd = component_describe(sizeof(int));
+  Archetype archetype = {.descriptors = &cd, .length = 1};
+
+  for (int i = 0; i < 4; i++) {
+    entity_create(world, archetype);
+  }
+
+  assert(world->containers_count == 1);
+  assert(world->containers[0].chunks_count == 1);
+  assert(world->containers[0].chunks[0].entities_count == 4);
+
+  world_destroy(world);
+  printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_create_entity_creates_new_chunk() {
+  printf("Running test: %s\n", __FUNCTION__);
+  World *world = world_create();
+  ComponentDescriptor *cd = component_describe(sizeof(int));
+  Archetype archetype = {.descriptors = &cd, .length = 1};
+
+  for (int i = 0; i < 5; i++) {
+    entity_create(world, archetype);
+  }
+
+  assert(world->containers_count == 1);
+  assert(world->containers[0].chunks_count == 2);
+  assert(world->containers[0].chunks[0].entities_count == 4);
+  assert(world->containers[0].chunks[1].entities_count == 1);
+
+  world_destroy(world);
+  printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_create_multiple_archetypes() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World* world = world_create();
+
+    ComponentDescriptor* pos = component_describe(sizeof(float) * 2);
+    Archetype archetype_pos = { .descriptors = &pos, .length = 1 };
+    entity_create(world, archetype_pos);
+
+    ComponentDescriptor* vel = component_describe(sizeof(float) * 2);
+    Archetype archetype_vel = { .descriptors = &vel, .length = 1 };
+    entity_create(world, archetype_vel);
+
+    assert(world->containers_count == 2);
+    assert(world->containers[0].chunks_count == 1);
+    assert(world->containers[0].chunks[0].entities_count == 1);
+    assert(world->containers[1].chunks_count == 1);
+    assert(world->containers[1].chunks[0].entities_count == 1);
+
+    world_destroy(world);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_world_create_initializes_empty() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World *world = world_create();
+    assert(world != NULL);
+    assert(world->containers_count == 0);
+    assert(world->containers == NULL);
+    world_destroy(world);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_create_entity_with_no_components() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World *world = world_create();
+    Archetype archetype = {.descriptors = NULL, .length = 0};
+
+    Entity e = entity_create(world, archetype);
+    assert(world->containers_count == 1);
+    assert(world->containers[0].chunks_count == 1);
+    assert(world->containers[0].chunks[0].entities_count == 1);
+    assert(e.chunk == world->containers[0].chunks);
+    assert(e.idx == 0);
+
+    world_destroy(world);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_remove_and_add_entity() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World* world = world_create();
+    ComponentDescriptor* cd = component_describe(sizeof(int));
+    Archetype archetype = { .descriptors = &cd, .length = 1 };
+
+    Entity entities;
+    entities = entity_create(world, archetype);
+
+    entity_remove(entities);
+
+    assert(world->containers[0].chunks[0].entities_count == 0);
+
+    Entity new_entity = entity_create(world, archetype);
+    assert(world->containers[0].chunks[0].entities_count == 1);
+    assert(new_entity.idx == 0);
+
+    world_destroy(world);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_create_and_remove_entity_with_no_components() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World *world = world_create();
+    Archetype archetype = {.descriptors = NULL, .length = 0};
+
+    Entity e = entity_create(world, archetype);
+    entity_remove(e);
+
+    assert(world->containers_count == 1);
+    assert(world->containers[0].chunks_count == 1);
+    assert(world->containers[0].chunks[0].entities_count == 0);
+
+    world_destroy(world);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_query_empty_world() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World* world = world_create();
+    ComponentDescriptor* cd = component_describe(sizeof(int));
+    Archetype archetype = { .descriptors = &cd, .length = 1 };
+
+    Query q = query_create(world, archetype);
+    assert(q.count == 0);
+    free(q.containers);
+
+    world_destroy(world);
+    free(cd);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_query_no_match() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World* world = world_create();
+
+    ComponentDescriptor* pos = component_describe(sizeof(float) * 2);
+    Archetype archetype_pos = { .descriptors = &pos, .length = 1 };
+    entity_create(world, archetype_pos);
+
+    ComponentDescriptor* vel = component_describe(sizeof(float) * 2);
+    Archetype archetype_vel = { .descriptors = &vel, .length = 1 };
+
+    Query q = query_create(world, archetype_vel);
+    assert(q.count == 0);
+    free(q.containers);
+
+    world_destroy(world);
+    free(pos);
+    free(vel);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_query_single_match() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World* world = world_create();
+
+    ComponentDescriptor* pos = component_describe(sizeof(float) * 2);
+    Archetype archetype_pos = { .descriptors = &pos, .length = 1 };
+    entity_create(world, archetype_pos);
+
+    ComponentDescriptor* vel = component_describe(sizeof(float) * 2);
+    Archetype archetype_vel = { .descriptors = &vel, .length = 1 };
+    entity_create(world, archetype_vel);
+
+    Query q = query_create(world, archetype_pos);
+    assert(q.count == 1);
+    free(q.containers);
+
+    world_destroy(world);
+    free(pos);
+    free(vel);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_query_multiple_components_archetype() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World* world = world_create();
+
+    ComponentDescriptor* pos = component_describe(sizeof(float) * 2);
+    ComponentDescriptor* vel = component_describe(sizeof(float) * 2);
+    ComponentDescriptor* descriptors[] = {pos, vel};
+    Archetype archetype_pv = { .descriptors = descriptors, .length = 2 };
+    entity_create(world, archetype_pv);
+
+    Query q = query_create(world, archetype_pv);
+    assert(q.count == 1);
+    free(q.containers);
+
+    world_destroy(world);
+    free(pos);
+    free(vel);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
 
 int main() {
-    printf("Starting ECS test...\n");
-
-    // 1. Create a world
-    World* world = world_create(16);
-    assert(world != NULL);
-    assert(world->archetypes_count == 0);
-    assert(world->archetypes_capacity == 16);
-
-    printf("World created.\n");
-
-    // 2. Register components
-    world_register_component(world, "Position", sizeof(Position));
-    world_register_component(world, "Velocity", sizeof(Velocity));
-    assert(world->component_storage.length == 2);
-    printf("Components registered.\n");
-
-    // 3. Create component masks
-    uint64_t pos_only_mask_bits[] = {1};
-    ComponentMask pos_only_mask = {pos_only_mask_bits, 1, 1};
-
-    uint64_t pos_vel_mask_bits[] = {3};
-    ComponentMask pos_vel_mask = {pos_vel_mask_bits, 1, 2};
-
-    // 4. Create archetypes
-    Archetype* pos_arch_template = archetype_create(pos_only_mask);
-    world->archetypes[world->archetypes_count++] = *pos_arch_template;
-    free(pos_arch_template);
-
-    Archetype* pos_vel_arch_template = archetype_create(pos_vel_mask);
-    world->archetypes[world->archetypes_count++] = *pos_vel_arch_template;
-    free(pos_vel_arch_template);
-
-    printf("Archetypes created.\n");
-
-    Archetype* pos_arch = &world->archetypes[0];
-    Archetype* pos_vel_arch = &world->archetypes[1];
-
-    // 5. Create entities
-    Entity e1 = entity_create(world, pos_vel_arch);
-    assert(e1.chunk != NULL);
-    assert(e1.idx == 0);
-    assert(pos_vel_arch->tail_chunk->entities_count == 1);
-
-    Entity e2 = entity_create(world, pos_vel_arch);
-    assert(e2.idx == 1);
-    assert(pos_vel_arch->tail_chunk->entities_count == 2);
-
-    printf("Entities created.\n");
-
-    // 6. Set component data
-    size_t pos_data_idx = get_data_idx(pos_vel_mask, 0);
-    size_t vel_data_idx = get_data_idx(pos_vel_mask, 1);
-
-    Position* pos_data = (Position*)e1.chunk->data[pos_data_idx];
-    pos_data[e1.idx] = (Position){1.0f, 2.0f};
-
-    Velocity* vel_data = (Velocity*)e1.chunk->data[vel_data_idx];
-    vel_data[e1.idx] = (Velocity){0.1f, 0.2f};
-
-    pos_data[e2.idx] = (Position){3.0f, 4.0f};
-    vel_data[e2.idx] = (Velocity){0.3f, 0.4f};
-
-    printf("Component data set.\n");
-
-
-    // 7. Move an entity
-    Entity e1_moved = entity_move(e1, world, pos_arch);
-    assert(e1_moved.chunk != NULL);
-    assert(pos_vel_arch->tail_chunk->entities_count == 1);
-    assert(pos_arch->tail_chunk->entities_count == 1);
-    printf("Entity moved.\n");
-
-    // 8. Check data after move
-    size_t moved_pos_data_idx = get_data_idx(pos_only_mask, 0);
-    Position* moved_pos_data = (Position*)e1_moved.chunk->data[moved_pos_data_idx];
-    assert(moved_pos_data[e1_moved.idx].x == 1.0f);
-    assert(moved_pos_data[e1_moved.idx].y == 2.0f);
-    printf("Data checked after move.\n");
-
-    // 9. Remove an entity
-    entity_remove(world, e2);
-    assert(pos_vel_arch->tail_chunk->entities_count == 0);
-    printf("Entity removed.\n");
-
-    // 10. Destroy the world
-    world_destroy(world);
-    printf("World destroyed.\n");
-
-    printf("ECS test finished successfully!\n");
-
-    return 0;
+  test_create_and_remove_single_entity();
+  test_create_entity_fills_chunk();
+  test_create_entity_creates_new_chunk();
+  test_create_multiple_archetypes();
+  test_world_create_initializes_empty();
+  test_create_entity_with_no_components();
+  test_remove_and_add_entity();
+  test_create_and_remove_entity_with_no_components();
+  test_query_empty_world();
+  test_query_no_match();
+  test_query_single_match();
+  test_query_multiple_components_archetype();
+  return 0;
 }
