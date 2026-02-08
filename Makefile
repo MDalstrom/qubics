@@ -86,9 +86,6 @@ test: dev-deps deps c_lib
 	PYTHONPATH=py/src $(VENV)bin/python -m unittest q_tests.test_ecs
 typecheck: dev-deps deps c_lib
 	cd py/ && .venv/bin/ty check . --output-format=concise
+edit: deps c_lib
+	$(VENV)bin/python -m q_editor.main $(ARGS)
 
-#
-
-edit: b-schemas rs-schemas
-	export "RUST_BACKTRACE=1" && \
-	cargo run --manifest-path rs/Cargo.toml --target-dir ../$(BUILD)

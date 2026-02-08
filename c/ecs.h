@@ -48,6 +48,7 @@ World *world_create();
 void world_destroy(World *world);
 
 ComponentDescriptor *component_describe(size_t stride);
+void component_destroy(ComponentDescriptor* descriptor);
 
 Entity entity_create(World *world, Archetype archetype);
 void entity_remove(Entity entity);

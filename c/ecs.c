@@ -47,6 +47,10 @@ ComponentDescriptor *component_describe(size_t stride) {
   return descriptor;
 }
 
+void component_destroy(ComponentDescriptor* descriptor) {
+  free(descriptor);
+}
+
 #define ENTITIES_PER_CHUNK 4
 
 void init_chunk(Chunk *chunk, ChunkContainer* container) {
