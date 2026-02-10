@@ -1,5 +1,0 @@
-include "./units.fbs";
-
-table Name {
-  v: [q_generated.units.Vector2];
-}

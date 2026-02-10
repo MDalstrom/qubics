@@ -50,7 +50,6 @@ def mk_shape_system(device, view, library):
                         [m2.X(), m2.Y(), m2.Z(), m2.W()],
                         [m3.X(), m3.Y(), m3.Z(), m3.W()]
                     ], dtype=np.float32)
-                    print("[shape] camera VP matrix:", vp_matrix)
                 break
         
         view_proj_buffer = device.newBufferWithBytes_length_options_(
@@ -76,7 +75,6 @@ def mk_shape_system(device, view, library):
             vertex_count = shape.VerticesLength()
             if vertex_count == 0:
                 continue
-            print(f"[shape] chunk vertices={vertex_count} transforms={transform.MatricesLength()}")
             
             vertices = np.zeros((vertex_count, 2), dtype=np.float32)
             colors = np.zeros((vertex_count, 4), dtype=np.float32)

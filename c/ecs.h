@@ -10,8 +10,8 @@ typedef struct {
 } ComponentDescriptor;
 
 typedef struct {
-  ComponentDescriptor **descriptors;
   size_t length;
+  ComponentDescriptor **descriptors;
 } Archetype;
 
 
@@ -24,19 +24,19 @@ typedef struct {
 } Chunk;
 
 typedef struct ChunkContainer {
-  Chunk *chunks;
-  size_t chunks_count;
   Archetype archetype;
+  size_t chunks_count;
+  Chunk *chunks;
 } ChunkContainer;
 
 typedef struct {
-  ChunkContainer *containers;
   size_t containers_count;
+  ChunkContainer *containers;
 } World;
 
 typedef struct {
-  ChunkContainer **containers;
   size_t count;
+  ChunkContainer **containers;
 } Query;
 
 typedef struct {
@@ -52,7 +52,7 @@ void component_destroy(ComponentDescriptor* descriptor);
 
 Entity entity_create(World *world, Archetype archetype);
 void entity_remove(Entity entity);
-Entity entity_move(Entity entity, World *world, Archetype *new_archetype);
+Entity entity_move(Entity entity, World *world, Archetype new_archetype);
 
 Query query_create(World *world, Archetype archetype);
 

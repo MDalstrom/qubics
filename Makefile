@@ -14,43 +14,16 @@ shaders: $(METALLIB)
 
 #
 
-SCHEMAS := $(wildcard schemas/*.fbs)
-
-BSCHEMAS := $(BUILD)bfbs
-$(BSCHEMAS).lock: $(SCHEMAS)
-	rm $(wildcard $(BSCHEMAS)/*.bfbs) || true
-	flatc -b --schema \
-		-o $(BSCHEMAS) \
-		$(SCHEMAS)
-	touch $(BSCHEMAS).lock
-b-schemas: $(BSCHEMAS).lock
-
-PYSCHEMAS := py/src/q_generated/
-$(PYSCHEMAS)__init__.py: $(SCHEMAS)
-	rm -r $(PYSCHEMAS)* || true
-	flatc --python \
-		-o $(PYSCHEMAS)../ \
-		--python \
-		--python-typing \
-		--python-gen-numpy \
-		$(SCHEMAS)
-py-schemas: $(PYSCHEMAS)__init__.py
-
-RSSCHEMAS := rs/src/q_generated/
-$(RSSCHEMAS)mod.rs: $(SCHEMAS)
-	rm -r $(RSSCHEMAS)* || true
-	flatc --rust \
-		-o $(RSSCHEMAS) \
-		$(SCHEMAS)
-rs-schemas: $(RSSCHEMAS)mod.rs
-
-#
-
 ECSLIB = $(BUILD)ecs.dylib
 
-$(ECSLIB): c/ecs.c c/ecs.h
-	gcc -Wall -Wextra -std=c11 -O2 -fPIC -shared c/ecs.c -o $(ECSLIB)
+$(ECSLIB): c/ecs.c c/ecs.h c/ecs_network.c c/ecs_network.h
+	gcc -Wall -Wextra -std=c11 -O2 -fPIC -shared c/ecs.c c/ecs_network.c -o $(ECSLIB)
 c_lib: $(ECSLIB)
+
+.PHONY: play test typecheck test_ecs
+test_ecs: c/ecs.c c/ecs.h c/ecs_network.c c/ecs_network.h c/test_ecs.c
+	gcc -Wall -Wextra -std=c11 -g -o build/test_ecs c/ecs.c c/ecs_network.c c/test_ecs.c
+	./build/test_ecs
 
 #
 
@@ -70,22 +43,19 @@ $(VENV).devlock: $(PYPROJECT) $(VENV)
 	touch $(VENV).devlock
 dev-deps: $(VENV).devlock
 
-ARGS := --api=metal \
-	--scene=simple_c \
-	--shaderslib="$(METALLIB)" \
+ARGS := --shaderslib="$(METALLIB)" \
 	--ecslib="$(ECSLIB)"
+SERVER_ARGS := $(ARGS) --scene=server --api=metal
+EDITOR_ARGS := $(ARGS) --scene=client --api=tui
 
-.PHONY: play test typecheck test_ecs
-test_ecs: c/ecs.c c/ecs.h c/test_ecs.c
-	gcc -Wall -Wextra -std=c11 -g -o build/test_ecs c/ecs.c c/test_ecs.c
-	./build/test_ecs
+play: shaders deps c_lib
+	$(VENV)bin/python -m q_engine.main $(SERVER_ARGS)
 
-play: shaders deps py-schemas c_lib
-	$(VENV)bin/python -m q_engine.main $(ARGS)
+edit: deps c_lib
+	$(VENV)bin/python -m q_engine.main $(EDITOR_ARGS)
+
 test: dev-deps deps c_lib
 	PYTHONPATH=py/src $(VENV)bin/python -m unittest q_tests.test_ecs
 typecheck: dev-deps deps c_lib
 	cd py/ && .venv/bin/ty check . --output-format=concise
-edit: deps c_lib
-	$(VENV)bin/python -m q_editor.main $(ARGS)
 

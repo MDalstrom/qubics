@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 int archetype_matches(Archetype a, Archetype b) {
   if (a.length != b.length) {
     return 0;
@@ -36,6 +37,7 @@ void world_destroy(World *world) {
       free(chunk->buffers);
     }
     free(container->chunks);
+    free(container->archetype.descriptors);
   }
   free(world->containers);
   free(world);
@@ -75,7 +77,9 @@ Entity entity_create(World *world, Archetype archetype) {
 
   world->containers = realloc(world->containers, ++world->containers_count * sizeof(ChunkContainer));
   target = world->containers + world->containers_count - 1;
-  target->archetype = archetype;
+  target->archetype.length = archetype.length;
+  target->archetype.descriptors = malloc(archetype.length * sizeof(ComponentDescriptor*));
+  memcpy(target->archetype.descriptors, archetype.descriptors, archetype.length * sizeof(ComponentDescriptor*));
   target->chunks_count = 1;
   target->chunks = malloc(1 * sizeof(Chunk));
 
@@ -124,5 +128,6 @@ Query query_create(World* world, Archetype archetype) {
       containers[count++] = world->containers + i;
     }
   }
-  return (Query) { containers, count };
+  return (Query) { count, containers };
 }
+

@@ -1,7 +1,9 @@
 #include "ecs.h"
+#include "ecs_network.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void test_create_and_remove_single_entity() {
   printf("Running test: %s\n", __FUNCTION__);
@@ -226,6 +228,151 @@ void test_query_multiple_components_archetype() {
     printf("Passed test: %s\n", __FUNCTION__);
 }
 
+ComponentDescriptor *test_pos_descriptor = NULL;
+ComponentDescriptor *test_vel_descriptor = NULL;
+
+const char* test_path_resolver(ComponentDescriptor* desc) {
+    if (desc == test_pos_descriptor) {
+        return "test.Position";
+    } else if (desc == test_vel_descriptor) {
+        return "test.Velocity";
+    }
+    return "unknown";
+}
+
+ComponentDescriptor* test_path_lookup(const char* path) {
+    if (strcmp(path, "test.Position") == 0) {
+        return component_describe(sizeof(float) * 2);
+    } else if (strcmp(path, "test.Velocity") == 0) {
+        return component_describe(sizeof(float) * 2);
+    }
+    return NULL;
+}
+
+void test_buffer_create_and_destroy() {
+    printf("Running test: %s\n", __FUNCTION__);
+    Buffer *buf = buffer_create(1024);
+    assert(buf != NULL);
+    assert(buf->data != NULL);
+    assert(buf->size == 0);
+    assert(buf->capacity == 1024);
+    buffer_destroy(buf);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_serialize_empty_world() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World *world = world_create();
+    Buffer *buf = buffer_create(1024);
+    
+    world_serialize(world, buf, test_path_resolver);
+    assert(buf->size == 0);
+    
+    buffer_destroy(buf);
+    world_destroy(world);
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_serialize_world_with_entities() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World *world = world_create();
+    
+    test_pos_descriptor = component_describe(sizeof(float) * 2);
+    Archetype archetype = {.descriptors = &test_pos_descriptor, .length = 1};
+    
+    Entity e = entity_create(world, archetype);
+    float *pos_data = (float*)e.chunk->buffers[0] + e.idx * 2;
+    pos_data[0] = 1.0f;
+    pos_data[1] = 2.0f;
+    
+    Buffer *buf = buffer_create(1024);
+    world_serialize(world, buf, test_path_resolver);
+    
+    assert(buf->size > 0);
+    
+    buffer_destroy(buf);
+    world_destroy(world);
+    component_destroy(test_pos_descriptor);
+    test_pos_descriptor = NULL;
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_serialize_deserialize_roundtrip() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World *world1 = world_create();
+    
+    test_pos_descriptor = component_describe(sizeof(float) * 2);
+    Archetype archetype = {.descriptors = &test_pos_descriptor, .length = 1};
+    
+    Entity e1 = entity_create(world1, archetype);
+    float *pos1 = (float*)(e1.chunk->buffers[0]) + e1.idx * 2;
+    pos1[0] = 3.5f;
+    pos1[1] = 7.2f;
+    
+    Entity e2 = entity_create(world1, archetype);
+    float *pos2 = (float*)(e2.chunk->buffers[0]) + e2.idx * 2;
+    pos2[0] = 10.0f;
+    pos2[1] = 20.0f;
+    
+    Buffer *buf = buffer_create(1024);
+    world_serialize(world1, buf, test_path_resolver);
+    
+    World *world2 = world_deserialize(buf, test_path_lookup);
+    assert(world2 != NULL);
+    assert(world2->containers_count == 1);
+    assert(world2->containers[0].chunks[0].entities_count == 2);
+    
+    float *des_pos1 = (float*)(world2->containers[0].chunks[0].buffers[0]);
+    assert(des_pos1[0] == 3.5f);
+    assert(des_pos1[1] == 7.2f);
+    assert(des_pos1[2] == 10.0f);
+    assert(des_pos1[3] == 20.0f);
+    
+    buffer_destroy(buf);
+    world_destroy(world1);
+    world_destroy(world2);
+    component_destroy(test_pos_descriptor);
+    test_pos_descriptor = NULL;
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
+void test_serialize_multiple_archetypes() {
+    printf("Running test: %s\n", __FUNCTION__);
+    World *world = world_create();
+    
+    test_pos_descriptor = component_describe(sizeof(float) * 2);
+    test_vel_descriptor = component_describe(sizeof(float) * 2);
+    
+    Archetype archetype_pos = {.descriptors = &test_pos_descriptor, .length = 1};
+    Entity e1 = entity_create(world, archetype_pos);
+    float *pos = (float*)(e1.chunk->buffers[0]) + e1.idx * 2;
+    pos[0] = 1.0f;
+    pos[1] = 2.0f;
+    
+    Archetype archetype_vel = {.descriptors = &test_vel_descriptor, .length = 1};
+    Entity e2 = entity_create(world, archetype_vel);
+    float *vel = (float*)(e2.chunk->buffers[0]) + e2.idx * 2;
+    vel[0] = 0.5f;
+    vel[1] = 0.25f;
+    
+    Buffer *buf = buffer_create(1024);
+    world_serialize(world, buf, test_path_resolver);
+    assert(buf->size > 0);
+    
+    World *world2 = world_deserialize(buf, test_path_lookup);
+    assert(world2 != NULL);
+    assert(world2->containers_count == 2);
+    
+    buffer_destroy(buf);
+    world_destroy(world);
+    world_destroy(world2);
+    component_destroy(test_pos_descriptor);
+    component_destroy(test_vel_descriptor);
+    test_pos_descriptor = NULL;
+    test_vel_descriptor = NULL;
+    printf("Passed test: %s\n", __FUNCTION__);
+}
+
 int main() {
   test_create_and_remove_single_entity();
   test_create_entity_fills_chunk();
@@ -239,5 +386,12 @@ int main() {
   test_query_no_match();
   test_query_single_match();
   test_query_multiple_components_archetype();
+  
+  test_buffer_create_and_destroy();
+  test_serialize_empty_world();
+  test_serialize_world_with_entities();
+  test_serialize_deserialize_roundtrip();
+  test_serialize_multiple_archetypes();
+  
   return 0;
 }

@@ -1,4 +1,3 @@
-from q_engine.ecs.c_bindings import WorldHandle
 from flatbuffers.builder import Builder
 from typing import Callable
 from q_generated.components.PerspectiveCamera import PerspectiveCamera
@@ -88,11 +87,6 @@ def mk_orthographic(get_aspect: Callable[[], float]):
                 projection = mk_matrix(size, get_aspect(), near, far)
                 vp_matrix = view @ projection
                 
-                print(f"[camera] entity={i} size={size:.3f} near={near:.3f} far={far:.3f}")
-                print(f"[camera] transform=\n{transform_matrix}")
-                print(f"[camera] vp=\n{vp_matrix}")
-
-                # Build and set camera cache
                 builder = Builder()
                 
                 CameraCacheMod.StartViewProjectionVector(builder, 1)

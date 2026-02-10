@@ -8,7 +8,7 @@ dependencies = [
   "pyobjc-framework-Cocoa",
   "pyobjc-framework-Quartz",
   "numpy",
-  "textual",
+  "rich",
 ]
 requires-python = ">=3.12"
 

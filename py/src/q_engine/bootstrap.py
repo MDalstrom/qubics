@@ -19,6 +19,10 @@ def get_run(config = get_config()) -> Loop:
         from q_engine.metal import run
         from q_engine.persistent.metal import state
         return partial(run, state)
+    elif config.api == "tui":
+        from q_engine.tui import run
+        from q_engine.persistent.tui import state
+        return partial(run, state)
     raise
 
 
