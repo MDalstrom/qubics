@@ -1,5 +1,5 @@
 #include "ecs.h"
-#include "ecs_network.h"
+#include "network.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

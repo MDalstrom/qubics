@@ -20,13 +20,11 @@ def get_run(config = get_config()) -> Loop:
         from q_engine.persistent.metal import state
         return partial(run, state)
     elif config.api == "tui":
-        from q_engine.tui import run
-        from q_engine.persistent.tui import state
-        return partial(run, state)
+        from q_engine.tui import mk_run
+        return partial(mk_run)
     raise
 
 
 def get_tick(config = get_config()) -> Tick:
     module = import_module(f"q_engine.scenes.{config.scene}")
     return module.get_tick()
-

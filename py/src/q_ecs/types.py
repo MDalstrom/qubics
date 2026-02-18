@@ -46,8 +46,8 @@ class Entity(ctypes.Structure):
 
 class Query(ctypes.Structure):
     _fields_ = [
-        ("containers", ctypes.POINTER(ChunkContainer_p)),
         ("count", ctypes.c_size_t),
+        ("containers", ctypes.POINTER(ChunkContainer_p)),
     ]
 
 class WorldMethods(Protocol):
@@ -56,3 +56,4 @@ class WorldMethods(Protocol):
     def create_entity(self, components: list[type[Component]]) -> Entity: ...
     def remove_entity(self, entity: Entity): ...
     def query(self, components: list[type[Component]]) -> Query: ...
+    def get_component_type(self, descriptor_ptr: ComponentDescriptor_p) -> type[Component] | None: ...

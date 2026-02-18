@@ -53,7 +53,6 @@ void component_destroy(ComponentDescriptor* descriptor) {
   free(descriptor);
 }
 
-#define ENTITIES_PER_CHUNK 4
 
 void init_chunk(Chunk *chunk, ChunkContainer* container) {
 chunk->container = container;

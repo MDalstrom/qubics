@@ -1,101 +1,104 @@
+import curses
 import ctypes
-from .shared import TestComponent, TestComponent2
-from q_ecs.types import ComponentDescriptor_p
+
+from q_ecs.types import WorldMethods, Component, World, ChunkContainer
+from q_engine.persistent.ecslib import mk_world
 from q_engine.bootstrap import get_config
-from q_ecs.c_bindings import mk_world_factory
-from q_ecs.network_bindings import mk_network_factory, ComponentPathLookup
 
 
-def mk_path_lookup(component_registry: dict[str, type]) -> ComponentPathLookup:
-    """Create a lookup function that maps component paths to descriptors."""
-    descriptor_cache = {}
-    lib = ctypes.CDLL(get_config().ecslib)
-    lib.component_describe.argtypes = [ctypes.c_size_t]
-    lib.component_describe.restype = ctypes.c_void_p
-    
-    def lookup(path_bytes: bytes) -> ctypes.c_void_p:
-        path = path_bytes.decode('utf-8')
-        
-        if path in descriptor_cache:
-            return descriptor_cache[path]
-        
-        if path in component_registry:
-            component_type = component_registry[path]
-            stride = ctypes.sizeof(component_type)
-            descriptor = lib.component_describe(stride)
-            descriptor_cache[path] = descriptor
-            return descriptor
-        
-        return None
-    
-    return ComponentPathLookup(lookup)
+class Position(Component):
+    _fields_ = [("x", ctypes.c_float), ("y", ctypes.c_float)]
 
+class Velocity(Component):
+    _fields_ = [("dx", ctypes.c_float), ("dy", ctypes.c_float)]
 
-def get_tick(config=get_config()):
-    ecslib_path = config.ecslib
-    world_factory = mk_world_factory(ecslib_path)
-    world = world_factory()
+def bake(world: WorldMethods):
+    world.create_entity([Position, Velocity])
+    world.create_entity([Position, Velocity])
+    world.create_entity([Position])
+
+def render_header(win, line, containers_count):
+    win.addstr(line, 0, f'  {containers_count} containers')
+    return line + 1
+
+def render_entity_indices(win, line, col_start, entity_count, col_width=8):
+    for i in range(entity_count):
+        win.addstr(line, col_start + i * col_width, str(i))
+    return line + 1
+
+def render_chunk_container_header(win, line, container_idx, chunks_count):
+    win.addstr(line, 0, f'# {container_idx} ({chunks_count} ch.):')
+    return line + 1
+
+def render_component_header(win, line, component_name):
+    win.addstr(line, 0, f'  [{component_name}]')
+    return line + 1
+
+def render_component_field(win, line, field_name, values, col_start=20, col_width=8):
+    win.addstr(line, 0, f'    {field_name}:')
+    for i, value in enumerate(values):
+        value_str = f'{value:.3f}' if isinstance(value, float) else str(value)
+        win.addstr(line, col_start + i * col_width, value_str)
+    return line + 1
+
+def render_container(win, line, world, container_idx, container, col_start=20, col_width=8):
+    line = render_chunk_container_header(win, line, container_idx, container.chunks_count)
     
-    component_registry = {
-        f"{TestComponent.__module__}.{TestComponent.__name__}": TestComponent,
-        f"{TestComponent2.__module__}.{TestComponent2.__name__}": TestComponent2,
-    }
+    max_entities = 0
+    for chunk_idx in range(container.chunks_count):
+        chunk = container.chunks[chunk_idx]
+        max_entities = max(max_entities, chunk.entities_count)
     
-    path_lookup = mk_path_lookup(component_registry)
+    line = render_entity_indices(win, line, col_start, max_entities, col_width)
     
-    _, NetworkClient = mk_network_factory(ecslib_path)
-    
-    # For TUI mode, we'll connect in a non-blocking way
-    client = None
-    connected = False
-    tick_count = 0
-    
-    def tick(**kwargs):
-        nonlocal client, connected, tick_count
-        tick_count += 1
+    archetype = container.archetype
+    for comp_idx in range(archetype.length):
+        descriptor = archetype.descriptors[comp_idx]
+        component_type = world.get_component_type(descriptor)
+        component_name = component_type.__name__
+        line = render_component_header(win, line, component_name)
         
-        # Try to connect on first tick
-        if not connected and client is None:
-            try:
-                print("Client: Attempting to connect to server at 127.0.0.1:8080...")
-                client = NetworkClient("127.0.0.1", 8080)
-                connected = True
-                print("Client: Connected to server!")
-            except Exception as e:
-                print(f"Client: Connection failed: {e}")
-                return
-        
-        if not connected:
-            return
-        
-        # Receive world state
-        try:
-            new_world_handle = client.receive_world(path_lookup)
-            
-            if new_world_handle:
-                world.handle = new_world_handle
-                
-                # If running in TUI mode, update the app
-                if config.api == "tui":
-                    from q_engine.persistent.tui import state
-                    if hasattr(state, 'app') and state.app:
-                        state.app.update_world_view(world.handle)
-                else:
-                    # Print world state for non-TUI mode
-                    from q_ecs.types import World
-                    world_struct = World.from_address(world.handle)
-                    print(f"\nTick {tick_count}: Received world state")
-                    print(f"  Containers: {world_struct.containers_count}")
-                    
-                    for i in range(world_struct.containers_count):
-                        container = world_struct.containers[i]
-                        total_entities = sum(container.chunks[j].entities_count 
-                                           for j in range(container.chunks_count))
-                        print(f"  Container {i}:")
-                        print(f"    Archetype components: {container.archetype.length}")
-                        print(f"    Total entities: {total_entities}")
-                        print(f"    Chunks: {container.chunks_count}")
-        except Exception as e:
-            print(f"Tick {tick_count}: Error receiving world state: {e}")
+        for field_name, field_type in component_type._fields_:
+            values = []
+            for chunk_idx in range(container.chunks_count):
+                chunk = container.chunks[chunk_idx]
+                buffer = ctypes.cast(chunk.buffers[comp_idx], ctypes.POINTER(component_type * chunk.entities_count))
+                for entity_idx in range(chunk.entities_count):
+                    values.append(getattr(buffer.contents[entity_idx], field_name))
+            line = render_component_field(win, line, field_name, values, col_start, col_width)
     
+    return line
+
+def render_world(win, world, world_h):
+    line = 0
+    n = world_h.containers_count
+    line = render_header(win, line, n)
+    
+    for container_idx in range(n):
+        container = world_h.containers[container_idx]
+        line = render_container(win, line, world, container_idx, container)
+    
+    return line
+
+def get_tick(config=get_config(), mk_world=mk_world):
+    world = mk_world()
+    bake(world)
+
+    cursor = 0
+    
+    def tick(win, key):
+        nonlocal cursor
+
+        world_h = World.from_address(world.handle)
+        line = render_world(win, world, world_h)
+       
+        if key == curses.KEY_UP:
+            cursor -= 1
+        elif key == curses.KEY_DOWN:
+            cursor += 1
+        max_y, max_x = win.getmaxyx()
+        max_y = min(line - 1, max_y)
+        cursor = max(0, min(max_y, cursor))
+        win.addstr(cursor, 0, ">")
+
     return tick

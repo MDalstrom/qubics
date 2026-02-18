@@ -1,5 +1,6 @@
-import ctypes
 from typing import Callable
+import ctypes
+import numpy as np
 
 from q_ecs.types import (
     ComponentDescriptor_p,
@@ -7,7 +8,7 @@ from q_ecs.types import (
     Entity,
     Query,
     Component,
-    ComponentDescriptor, 
+    ComponentDescriptor,
     WorldMethods,
     World_p,
 )
@@ -54,20 +55,36 @@ def mk_world_factory(lib_path: str) -> Callable[[], WorldMethods]:
                 self.descriptors_authority[component_type] = descriptor
             return self.descriptors_authority[component_type]
 
-        def create_entity(self, components: list[type[Component]]) -> Entity:
+        def _get_archetype(self, components: list[type[Component]]):
             descriptors = [self._get_descriptor(c) for c in components]
             descriptor_array = (ComponentDescriptor_p * len(descriptors))(*descriptors)
             archetype = Archetype(descriptors=descriptor_array, length=len(descriptors))
+            return archetype
+
+        def create_entity(self, components: list[type[Component]]) -> Entity:
+            archetype = self._get_archetype(components)
             return lib.entity_create(self.handle, archetype)
 
         def remove_entity(self, entity: Entity):
             lib.entity_remove(entity)
 
         def query(self, components: list[type[Component]]) -> Query:
-            descriptors = [self._get_descriptor(c) for c in components]
-            descriptor_array = (ComponentDescriptor_p * len(descriptors))(*descriptors)
-            archetype = Archetype(descriptors=descriptor_array, length=len(descriptors))
-
+            archetype = self._get_archetype(components)
             return lib.query_create(self.handle, archetype)
+
+        def get_component_type(self, descriptor_ptr: ComponentDescriptor_p) -> type[Component] | None:
+            descriptor_addr = ctypes.addressof(descriptor_ptr.contents)
+            for comp_type, desc in self.descriptors_authority.items():
+                if ctypes.addressof(desc.contents) == descriptor_addr:
+                    return comp_type
+            return None
+
+        @staticmethod
+        def buffer_to_numpy(data_ptr: ctypes.c_void_p, count: int, component_type: type[Component]) -> np.ndarray:
+            if count == 0:
+                return np.empty(0, dtype=np.dtype(component_type))
+
+            ptr = ctypes.cast(data_ptr, ctypes.POINTER(component_type))
+            return np.ctypeslib.as_array(ptr, shape=(count,))
 
     return WorldHandle

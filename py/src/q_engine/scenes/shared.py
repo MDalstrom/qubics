@@ -12,3 +12,9 @@ class TestComponent2(Component):
         ("x", ctypes.c_float),
         ("y", ctypes.c_float),
     ]
+
+
+registry = [
+    TestComponent,
+    TestComponent2
+]

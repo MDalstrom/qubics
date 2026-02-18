@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define ENTITIES_PER_CHUNK 4
+
 typedef struct {
   size_t stride;
 } ComponentDescriptor;
@@ -13,7 +15,6 @@ typedef struct {
   size_t length;
   ComponentDescriptor **descriptors;
 } Archetype;
-
 
 struct ChunkContainer;
 
