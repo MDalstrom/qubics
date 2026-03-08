@@ -2,7 +2,7 @@ from typing import Callable
 import ctypes
 import numpy as np
 
-from q_ecs.types import (
+from bridge.types import (
     ComponentDescriptor_p,
     Archetype,
     Entity,

@@ -26,6 +26,3 @@ typedef struct {
   Matrix3x3 wm;
 } Transform2D;
 
-typedef struct {
-    int value;
-} TestComponent;

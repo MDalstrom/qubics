@@ -2,6 +2,7 @@ from functools import partial
 from importlib import import_module
 from argparse import ArgumentParser
 from q_engine.domain import Loop, Tick
+import ctypes
 
 
 def get_config():
@@ -11,14 +12,22 @@ def get_config():
     parser.add_argument("--ticks", default=120)
     parser.add_argument("--shaderslib")
     parser.add_argument("--ecslib")
+    parser.add_argument("--metalbootlib", default="swift/libmetalboot.dylib")
+    parser.add_argument("--render3dlib")
     return parser.parse_args()
 
 
 def get_run(config = get_config()) -> Loop:
     if config.api == "metal":
-        from q_engine.metal import run
-        from q_engine.persistent.metal import state
-        return partial(run, state)
+        metalboot = ctypes.CDLL(config.metalbootlib)
+        metalboot.metal_boot.argtypes = [ctypes.c_void_p]
+        metalboot.metal_boot.restype = None
+        
+        def run(tick: Tick):
+            tick_fn = ctypes.CFUNCTYPE(None, ctypes.c_void_p)(tick)
+            metalboot.metal_boot(tick_fn)
+        
+        return run
     elif config.api == "tui":
         from q_engine.tui import mk_run
         return partial(mk_run)
