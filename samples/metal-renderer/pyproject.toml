@@ -1,0 +1,12 @@
+[project]
+name = "metal-renderer"
+version = "0.0.1"
+dependencies = [
+  "pyobjc-framework-Metal",
+  "pyobjc-framework-MetalKit",
+  "qubics-py-bridge"
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

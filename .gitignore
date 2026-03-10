@@ -3,3 +3,6 @@ build
 .idea/
 .DS_Store
 **/q_generated/
+**/__pycache__/
+**/*.egg-info/
+**/.venv/
