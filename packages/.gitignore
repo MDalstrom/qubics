@@ -3,8 +3,3 @@ build/
 __pycache__/
 *.egg-info/
 .pytest_cache/
-
-.cache/
-compile_commands.json
-
-src/generated/

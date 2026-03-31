@@ -1,0 +1,7 @@
+name = "entrypoint"
+version = "0.0.1"
+deps = [
+  "backend-contracts", 
+  "bridge-contracts",
+  "ecs"
+]

@@ -1,0 +1,3 @@
+name = "qubics-py"
+version = "0.0.1"
+deps = ["ecs", "bridge-contracts"]

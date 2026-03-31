@@ -9,6 +9,7 @@
 
 typedef struct {
   size_t stride;
+  const char* name;
 } ComponentDescriptor;
 
 typedef struct {
@@ -31,30 +32,32 @@ typedef struct ChunkContainer {
 } ChunkContainer;
 
 typedef struct {
+  size_t count;
+  ComponentDescriptor **descriptors;
+} Registry;
+
+typedef struct {
   size_t containers_count;
   ChunkContainer *containers;
 } World;
-
-typedef struct {
-  size_t count;
-  ChunkContainer **containers;
-} Query;
 
 typedef struct {
   Chunk *chunk;
   size_t idx;
 } Entity;
 
+Registry *registry_create();
+void registry_destroy(Registry *registry);
+
+ComponentDescriptor *component_register(Registry *registry, size_t stride, const char* name);
+
 World *world_create();
 void world_destroy(World *world);
-
-ComponentDescriptor *component_describe(size_t stride);
-void component_destroy(ComponentDescriptor* descriptor);
 
 Entity entity_create(World *world, Archetype archetype);
 void entity_remove(Entity entity);
 Entity entity_move(Entity entity, World *world, Archetype new_archetype);
 
-Query query_create(World *world, Archetype archetype);
+size_t query_chunks(World *world, Archetype archetype, ChunkContainer **out, size_t capacity);
 
 #endif // ECS_H

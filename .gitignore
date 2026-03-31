@@ -1,8 +1,10 @@
-todo.md
-build
+.cache/
 .idea/
+.claude/
+.pytest_cache/
+.ruff_cache/
+
+build/
+lock.toml
+
 .DS_Store
-**/q_generated/
-**/__pycache__/
-**/*.egg-info/
-**/.venv/

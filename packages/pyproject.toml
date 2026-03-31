@@ -1,3 +1,12 @@
 [project]
 name = "epk"
 version = "0.0.1"
+
+[project.scripts]
+epk = "epk._cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

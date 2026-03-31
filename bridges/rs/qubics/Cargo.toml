@@ -1,0 +1,9 @@
+[package]
+name = "qubics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+qubics-sys = { path = "../qubics-sys" }
+qubics-macros = { path = "../qubics-macros" }
+inventory = "0.3"

@@ -1,0 +1,11 @@
+[package]
+name = "rs-hello"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "rs_hello"
+crate-type = ["cdylib"]
+
+[dependencies]
+qubics = { path = "../../bridges/rs/qubics" }

@@ -1,13 +1,13 @@
-BUILD_DIR = $(abspath ./build)
+BUILD_DIR  = $(abspath ./build)
+LOCK_FILE = $(BUILD_DIR)/lock.toml
 
 .PHONY: run
-run:
-	mkdir -p $(BUILD_DIR)
-	$(MAKE) -C backends/metal O=$(BUILD_DIR)
-	$(MAKE) -C ecs O=$(BUILD_DIR)
-	$(MAKE) -C samples/metal-renderer O=$(BUILD_DIR)
 
-	./entrypoint/.venv/bin/python -m pip install -e entrypoint
-	./entrypoint/.venv/bin/python -m qubics.main \
-		--backend=$(BUILD_DIR)/metal.dylib \
-		--engine=$(BUILD_DIR)/ecs.dylib
+run: install
+	$(MAKE) -C entrypoint O=$(BUILD_DIR)
+	epk watch --lock-file $(LOCK_FILE) --build-dir $(BUILD_DIR) & QUBICS_PATH=$(BUILD_DIR) $(BUILD_DIR)/main
+
+install: manifest.toml
+	mkdir -p $(BUILD_DIR)
+	rm -f $(LOCK_FILE)
+	epk install --lock-file $(LOCK_FILE) --build-dir $(BUILD_DIR)

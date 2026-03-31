@@ -4,7 +4,18 @@ else
   BUILD_DIR := .
 endif
 
-$(BUILD_DIR)/ecs.dylib:
-	@mkdir -p $(BUILD_DIR)
-	gcc -Wall -Wextra -std=c11 -O2 -fPIC -shared ecs.c -o $(BUILD_DIR)/ecs.dylib
+all: $(BUILD_DIR)/ecs.dylib $(BUILD_DIR)/ecs.h $(BUILD_DIR)/scheduler.h
 
+$(BUILD_DIR)/scheduler.h:
+	@cp scheduler.h $(BUILD_DIR)/scheduler.h
+$(BUILD_DIR)/ecs.h:
+	@cp ecs.h $(BUILD_DIR)/ecs.h
+
+$(BUILD_DIR)/ecs.dylib: ecs.c scheduler.c
+	gcc -Wall -Wextra -std=c11 -O2 -fPIC -shared ecs.c scheduler.c -o $(BUILD_DIR)/ecs.dylib
+
+.PHONY: test
+test:
+	gcc -Wall -Wextra -std=c11 -O2 scheduler_test.c scheduler.c -o scheduler_test
+	$(BUILD_DIR)/scheduler_test
+	rm scheduler_test

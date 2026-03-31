@@ -1,5 +1,6 @@
 #include "ecs.h"
 
+#include <_stdio.h>
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -17,6 +18,21 @@ int archetype_matches(Archetype a, Archetype b) {
   }
 
   return 1;
+}
+
+Registry *registry_create() {
+  Registry *registry = malloc(sizeof(Registry));
+  registry->descriptors = NULL;
+  registry->count = 0;
+  return registry;
+}
+
+void registry_destroy(Registry *registry) {
+  for (size_t i = 0; i < registry->count; i++) {
+    free(registry->descriptors[i]);
+  }
+  free(registry->descriptors);
+  free(registry);
 }
 
 World *world_create() {
@@ -43,16 +59,16 @@ void world_destroy(World *world) {
   free(world);
 }
 
-ComponentDescriptor *component_describe(size_t stride) {
+ComponentDescriptor *component_register(Registry *registry, size_t stride, const char* name) {
   ComponentDescriptor *descriptor = malloc(sizeof(ComponentDescriptor));
   descriptor->stride = stride;
+  descriptor->name = name;
+
+  registry->descriptors = realloc(registry->descriptors, ++registry->count * sizeof(ComponentDescriptor*));
+  registry->descriptors[registry->count - 1] = descriptor;
+
   return descriptor;
 }
-
-void component_destroy(ComponentDescriptor* descriptor) {
-  free(descriptor);
-}
-
 
 void init_chunk(Chunk *chunk, ChunkContainer* container) {
 chunk->container = container;
@@ -118,15 +134,18 @@ void entity_remove(Entity entity) {
   last->entities_count--;
 }
 
-Query query_create(World* world, Archetype archetype) {
-  ChunkContainer** containers = malloc(world->containers_count * sizeof(ChunkContainer*));
-  size_t count = 0;
+Entity entity_move(Entity entity, World *world, Archetype new_archetype) {
+  entity_remove(entity);
+  return entity_create(world, new_archetype);
+}
 
-  for (size_t i = 0; i < world->containers_count; i++) {
+size_t query_chunks(World *world, Archetype archetype, ChunkContainer **out, size_t capacity) {
+  size_t count = 0;
+  for (size_t i = 0; i < world->containers_count && count < capacity; i++) {
     if (archetype_matches(archetype, world->containers[i].archetype)) {
-      containers[count++] = world->containers + i;
+      out[count++] = world->containers + i;
     }
   }
-  return (Query) { count, containers };
+  return count;
 }
 
