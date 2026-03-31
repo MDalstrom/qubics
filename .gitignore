@@ -1,6 +1,5 @@
 .cache/
 .idea/
-.claude/
 .pytest_cache/
 .ruff_cache/
 
