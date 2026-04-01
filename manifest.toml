@@ -3,5 +3,5 @@ version = "0.0.1"
 deps = [
   "ecs",
   "backend-metal",
-  "rs-hello"
+  "mesh2d"
 ]

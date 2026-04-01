@@ -1,18 +1,10 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
-#include "ecs.h"
+#include "api.h"
 #include <stddef.h>
 
 #define SCHEDULER_THREADS 4
-
-typedef void (*SystemFn)(void *world, void *ctx);
-
-typedef struct {
-  SystemFn run;
-  Archetype reads;
-  Archetype writes;
-} SystemDescriptor;
 
 typedef struct {
   size_t count;
@@ -32,7 +24,7 @@ void schedule_destroy(Scheduler *scheduler);
 void schedule_system(Scheduler *scheduler, SystemDescriptor descriptor);
 
 Runner *runner_create(Scheduler *scheduler);
-void runner_tick(Runner *runner, World *world, void *ctx);
+void runner_tick(Runner *runner, void *world, void *ctx);
 void runner_destroy(Runner *runner);
 
 #endif // SCHEDULER_H

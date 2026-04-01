@@ -4,12 +4,14 @@ else
   BUILD_DIR := .
 endif
 
-all: $(BUILD_DIR)/ecs.dylib $(BUILD_DIR)/ecs.h $(BUILD_DIR)/scheduler.h
+all: $(BUILD_DIR)/ecs.dylib $(BUILD_DIR)/ecs.h $(BUILD_DIR)/scheduler.h $(BUILD_DIR)/api.h
 
 $(BUILD_DIR)/scheduler.h:
 	@cp scheduler.h $(BUILD_DIR)/scheduler.h
 $(BUILD_DIR)/ecs.h:
 	@cp ecs.h $(BUILD_DIR)/ecs.h
+$(BUILD_DIR)/api.h:
+	@cp api.h $(BUILD_DIR)/api.h
 
 $(BUILD_DIR)/ecs.dylib: ecs.c scheduler.c
 	gcc -Wall -Wextra -std=c11 -O2 -fPIC -shared ecs.c scheduler.c -o $(BUILD_DIR)/ecs.dylib

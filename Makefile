@@ -11,3 +11,6 @@ install: manifest.toml
 	mkdir -p $(BUILD_DIR)
 	rm -f $(LOCK_FILE)
 	epk install --lock-file $(LOCK_FILE) --build-dir $(BUILD_DIR)
+
+clean:
+	rm -r $(BUILD_DIR)

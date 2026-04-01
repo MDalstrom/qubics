@@ -1,4 +1,5 @@
 #import "contract.h"
+#import "backend-contracts/contract.h"
 #import <Cocoa/Cocoa.h>
 #import <MetalKit/MetalKit.h>
 #import <signal.h>
@@ -64,32 +65,14 @@ static void signal_handler(int sig) {
 }
 
 - (void)drawInMTKView:(MTKView *)view {
-    typedef struct {
-        void* mtkView;
-        void* device;
-        void* commandQueue;
-    } RenderContext;
-    
     RenderContext context;
-    context.mtkView = (__bridge void*)self.mtkView;
-    context.device = (__bridge void*)self.device;
+    context.mtkView      = (__bridge void*)self.mtkView;
+    context.device       = (__bridge void*)self.device;
     context.commandQueue = (__bridge void*)self.commandQueue;
-    
+
     if (self.tick_fn) {
         self.tick_fn(&context);
     }
-    
-    id<MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
-    MTLRenderPassDescriptor *renderPassDescriptor = view.currentRenderPassDescriptor;
-    
-    if (renderPassDescriptor != nil) {
-        id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-        [renderEncoder endEncoding];
-        
-        [commandBuffer presentDrawable:view.currentDrawable];
-    }
-    
-    [commandBuffer commit];
 }
 
 @end

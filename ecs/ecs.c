@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define ENTITIES_PER_CHUNK 4
 
 int archetype_matches(Archetype a, Archetype b) {
   if (a.length != b.length) {
@@ -61,6 +62,7 @@ void world_destroy(World *world) {
 
 ComponentDescriptor *component_register(Registry *registry, size_t stride, const char* name) {
   ComponentDescriptor *descriptor = malloc(sizeof(ComponentDescriptor));
+  printf("stride\n");
   descriptor->stride = stride;
   descriptor->name = name;
 

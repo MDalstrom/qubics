@@ -109,7 +109,7 @@ Runner *runner_create(Scheduler *scheduler) {
 
 typedef struct {
   Runner *runner;
-  World *world;
+  void *world;
   void *ctx;
   size_t stage_start;
   size_t stage_end;
@@ -125,7 +125,7 @@ static void *tick_thread(void *arg) {
   return NULL;
 }
 
-void runner_tick(Runner *runner, World *world, void *ctx) {
+void runner_tick(Runner *runner, void *world, void *ctx) {
   pthread_t threads[SCHEDULER_THREADS];
   TickArgs args[SCHEDULER_THREADS];
   atomic_size_t cursor;

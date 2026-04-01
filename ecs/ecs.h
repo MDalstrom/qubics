@@ -1,35 +1,8 @@
 #ifndef ECS_H
 #define ECS_H
 
-#include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
-
-#define ENTITIES_PER_CHUNK 4
-
-typedef struct {
-  size_t stride;
-  const char* name;
-} ComponentDescriptor;
-
-typedef struct {
-  size_t length;
-  ComponentDescriptor **descriptors;
-} Archetype;
-
-struct ChunkContainer;
-
-typedef struct {
-  size_t entities_count;
-  struct ChunkContainer *container;
-  void **buffers;
-} Chunk;
-
-typedef struct ChunkContainer {
-  Archetype archetype;
-  size_t chunks_count;
-  Chunk *chunks;
-} ChunkContainer;
+#include "api.h"
 
 typedef struct {
   size_t count;
@@ -40,11 +13,6 @@ typedef struct {
   size_t containers_count;
   ChunkContainer *containers;
 } World;
-
-typedef struct {
-  Chunk *chunk;
-  size_t idx;
-} Entity;
 
 Registry *registry_create();
 void registry_destroy(Registry *registry);

@@ -1,3 +1,0 @@
-name = "bridge-contracts"
-version = "0.0.1"
-deps = ["ecs"]

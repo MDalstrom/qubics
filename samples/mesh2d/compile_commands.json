@@ -1,0 +1,16 @@
+[
+  {
+    "file": "mesh2d.m",
+    "arguments": [
+      "clang",
+      "-o",
+      "./mesh2d.dylib",
+      "mesh2d.m",
+      "-I./build/",
+      "-fobjc-arc",
+      "-fPIC"
+    ],
+    "directory": "/Users/mdal/prjs/own/qubics/samples/mesh2d",
+    "output": "./mesh2d.dylib"
+  }
+]
