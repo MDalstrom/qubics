@@ -1,11 +1,14 @@
 [package]
 name = "rs-hello"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
-name = "rs_hello"
 crate-type = ["cdylib"]
 
 [dependencies]
 qubics = { path = "../../bridges/rs/qubics" }
+linkme = "0.3.35"
+
+[build-dependencies]
+qubics-build = { path = "../../bridges/rs/qubics-build" }

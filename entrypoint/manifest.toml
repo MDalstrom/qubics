@@ -1,6 +1,8 @@
 name = "entrypoint"
 version = "0.0.1"
 deps = [
-  "backend-contracts", 
-  "ecs"
+  "backend-contracts",
+  "api",
+  "ecs",
+  "scheduler"
 ]

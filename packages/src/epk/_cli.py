@@ -27,6 +27,7 @@ def main():
     cmd_install.add_argument("--manifest", default=Path("manifest.toml"), type=Path)
     cmd_install.add_argument("--lock-file", default=Path("build/lock.toml"), type=Path)
     cmd_install.add_argument("--build-dir", "-o", default=Path("build"), type=Path)
+    cmd_install.add_argument("--rebuild", action="store_true")
 
     cmd_add = commands.add_parser("add")
     cmd_add.add_argument("source", default=Path("."), type=Path)
@@ -55,7 +56,7 @@ def main():
             else:
                 locks = use_cases.lock(args.manifest, args.lock_file, env=env)
                 lock.serialize(args.lock_file, locks)
-            use_cases.install(locks, args.build_dir, env=env)
+            use_cases.install(locks, args.build_dir, env=env, rebuild=args.rebuild)
         case "add":
             use_cases.add(args.source.resolve(), env=env)
         case "publish":
@@ -66,3 +67,4 @@ def main():
                 parser.error(f"lock file not found: {args.lock_file}")
             locks = lock.parse(args.lock_file)
             use_cases.watch(locks, args.build_dir, env=env, interval=args.interval)
+

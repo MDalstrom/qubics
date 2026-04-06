@@ -1,152 +1,150 @@
 use proc_macro::TokenStream;
-use proc_macro2::Span;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
+    bracketed,
     parse::{Parse, ParseStream},
     parse_macro_input,
     punctuated::Punctuated,
-    DeriveInput, Ident, ItemFn, Token,
+    ItemFn, Token, Type,
 };
 
-// ---------------------------------------------------------------------------
-// #[derive(Component)]
-// ---------------------------------------------------------------------------
+fn fnv1a_hash(bytes: &[u8]) -> u32 {
+    const FNV_OFFSET: u32 = 2166136261;
+    const FNV_PRIME: u32 = 16777619;
+    bytes.iter().fold(FNV_OFFSET, |hash, &b| {
+        hash.wrapping_mul(FNV_PRIME) ^ b as u32
+    })
+}
 
-/// Generates a `'static` `ComponentDescriptor` and implements `Component`.
-///
-/// The static is named `__COMP_{TypeName}` and is referenced by `#[system]`.
-#[proc_macro_derive(Component)]
-pub fn derive_component(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = &input.ident;
-    let name_str = name.to_string();
-    let static_ident = Ident::new(&format!("__COMP_{name}"), Span::call_site());
-
+fn type_to_descriptor(ty: &Type) -> TokenStream2 {
+    let id = fnv1a_hash(quote!(#ty).to_string().as_bytes());
     quote! {
-        #[allow(non_upper_case_globals)]
-        static #static_ident: ::qubics::reexport::ComponentDescriptor =
-            ::qubics::reexport::ComponentDescriptor {
-                stride: ::std::mem::size_of::<#name>(),
-                // SAFETY: string literal is 'static and null-terminated.
-                name: concat!(#name_str, "\0").as_ptr() as *const ::std::ffi::c_char,
-            };
-
-        impl ::qubics::Component for #name {
-            fn descriptor() -> &'static ::qubics::reexport::ComponentDescriptor {
-                &#static_ident
-            }
+        ::qubics::ComponentMeta {
+            id: #id,
+            stride: ::std::mem::size_of::<#ty>(),
         }
     }
-    .into()
 }
 
-// ---------------------------------------------------------------------------
-// #[system(reads = [A, B], writes = [C])]
-// ---------------------------------------------------------------------------
-
-struct SystemArgs {
-    reads: Vec<Ident>,
-    writes: Vec<Ident>,
+struct ComponentArgs {
+    reads: Vec<Type>,
+    writes: Vec<Type>,
 }
 
-impl Parse for SystemArgs {
+impl Parse for ComponentArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut reads = Vec::new();
-        let mut writes = Vec::new();
+        let mut reads = vec![];
+        let mut writes = vec![];
 
         while !input.is_empty() {
-            let key: Ident = input.parse()?;
-            let _: Token![=] = input.parse()?;
-
+            let name: syn::Ident = input.parse()?;
+            input.parse::<Token![=]>()?;
             let content;
-            syn::bracketed!(content in input);
-            let types: Punctuated<Ident, Token![,]> =
-                content.parse_terminated(Ident::parse, Token![,])?;
+            bracketed!(content in input);
+            let types: Punctuated<Type, Token![,]> =
+                content.parse_terminated(Type::parse, Token![,])?;
 
-            match key.to_string().as_str() {
-                "reads" => reads.extend(types),
-                "writes" => writes.extend(types),
+            match name.to_string().as_str() {
+                "reads" => reads = types.into_iter().collect(),
+                "writes" => writes = types.into_iter().collect(),
                 other => {
                     return Err(syn::Error::new(
-                        key.span(),
+                        name.span(),
                         format!("unknown key `{other}`, expected `reads` or `writes`"),
                     ))
                 }
             }
 
             if input.peek(Token![,]) {
-                let _: Token![,] = input.parse()?;
+                input.parse::<Token![,]>()?;
             }
         }
 
-        Ok(SystemArgs { reads, writes })
+        Ok(ComponentArgs { reads, writes })
     }
 }
 
-/// Wraps a system function into a C-compatible trampoline and registers it
-/// with `inventory` so `qubics_plugin` picks it up automatically.
-///
-/// ```rust
-/// #[system(reads = [Position], writes = [Velocity])]
-/// fn my_system(world: *mut std::ffi::c_void) { ... }
-/// ```
 #[proc_macro_attribute]
-pub fn system(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(attr as SystemArgs);
+pub fn bake(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let func = parse_macro_input!(item as ItemFn);
-
-    let fn_name = &func.sig.ident;
-    let trampoline_ident =
-        Ident::new(&format!("__trampoline_{fn_name}"), Span::call_site());
-    let reads_ident = Ident::new(&format!("__READS_{fn_name}"), Span::call_site());
-    let writes_ident = Ident::new(&format!("__WRITES_{fn_name}"), Span::call_site());
-
-    let reads_statics: Vec<_> = args
-        .reads
-        .iter()
-        .map(|t| {
-            let s = Ident::new(&format!("__COMP_{t}"), Span::call_site());
-            quote! { &#s }
-        })
-        .collect();
-
-    let writes_statics: Vec<_> = args
-        .writes
-        .iter()
-        .map(|t| {
-            let s = Ident::new(&format!("__COMP_{t}"), Span::call_site());
-            quote! { &#s }
-        })
-        .collect();
-
-    let reads_len = reads_statics.len();
-    let writes_len = writes_statics.len();
+    let func_name = &func.sig.ident;
+    let vis = &func.vis;
+    let wrapper_name = quote::format_ident!("__bake_c_{}", func_name);
+    let registration_name = quote::format_ident!("__bake_registration_{}", func_name);
 
     quote! {
         #func
 
-        #[allow(non_upper_case_globals)]
-        static #reads_ident: [&'static ::qubics::reexport::ComponentDescriptor; #reads_len] =
-            [ #(#reads_statics),* ];
-
-        #[allow(non_upper_case_globals)]
-        static #writes_ident: [&'static ::qubics::reexport::ComponentDescriptor; #writes_len] =
-            [ #(#writes_statics),* ];
-
-        unsafe extern "C" fn #trampoline_ident(
-            world: *mut ::std::ffi::c_void,
-            _ctx: *mut ::std::ffi::c_void,
-        ) {
-            #fn_name(world);
+        unsafe extern "C" fn #wrapper_name(__world: *mut ::qubics::WorldApi) {
+            #func_name(*__world)
         }
 
-        ::qubics::inventory::submit! {
-            ::qubics::system::SystemRegistration {
-                trampoline: #trampoline_ident,
-                reads: &#reads_ident,
-                writes: &#writes_ident,
-            }
-        }
+        #[::linkme::distributed_slice(::qubics::BAKE_SYSTEMS)]
+        #[linkme(crate = ::linkme)]
+        #[allow(non_upper_case_globals)]
+        #vis static #registration_name: ::qubics::BakeEntry = ::qubics::BakeEntry {
+            run: #wrapper_name,
+        };
     }
     .into()
+}
+
+fn staged_macro(
+    attr: TokenStream,
+    item: TokenStream,
+    slice: TokenStream2,
+    entry_type: TokenStream2,
+    prefix: &str,
+) -> TokenStream {
+    let args = parse_macro_input!(attr as ComponentArgs);
+    let func = parse_macro_input!(item as ItemFn);
+    let func_name = &func.sig.ident;
+    let vis = &func.vis;
+
+    let reads: Vec<TokenStream2> = args.reads.iter().map(type_to_descriptor).collect();
+    let writes: Vec<TokenStream2> = args.writes.iter().map(type_to_descriptor).collect();
+    let reads_len = reads.len();
+    let writes_len = writes.len();
+    let registration_name = quote::format_ident!("__{}_registration_{}", prefix, func_name);
+
+    quote! {
+        #func
+
+        #[::linkme::distributed_slice(#slice)]
+        #[linkme(crate = ::linkme)]
+        #[allow(non_upper_case_globals)]
+        #vis static #registration_name: #entry_type = {
+            static READS: [::qubics::ComponentMeta; #reads_len] = [#(#reads),*];
+            static WRITES: [::qubics::ComponentMeta; #writes_len] = [#(#writes),*];
+            #entry_type {
+                run: #func_name,
+                reads: &READS,
+                writes: &WRITES,
+            }
+        };
+    }
+    .into()
+}
+
+#[proc_macro_attribute]
+pub fn simulate(attr: TokenStream, item: TokenStream) -> TokenStream {
+    staged_macro(
+        attr,
+        item,
+        quote!(::qubics::SIMULATION_SYSTEMS),
+        quote!(::qubics::SimulationEntry),
+        "simulate",
+    )
+}
+
+#[proc_macro_attribute]
+pub fn render(attr: TokenStream, item: TokenStream) -> TokenStream {
+    staged_macro(
+        attr,
+        item,
+        quote!(::qubics::RENDER_SYSTEMS),
+        quote!(::qubics::RenderEntry),
+        "render",
+    )
 }

@@ -41,7 +41,7 @@ class InstallSuccess(NamedTuple):
 InstallFailure: TypeAlias = str
 
 
-def plan(lock: LockedPackage, *, env: LocalRegistry) -> InstallPlan:
+def plan(lock: LockedPackage, *, env: LocalRegistry, rebuild: bool = False) -> InstallPlan:
     match lock.reference:
         case ArtifactReference(_, platform):
             native = platform or env.native_platform
@@ -49,10 +49,13 @@ def plan(lock: LockedPackage, *, env: LocalRegistry) -> InstallPlan:
             native = None
 
     art = registry.artifact_path(env, lock.name, lock.version, native)
+    src = registry.src_path(env, lock.name, lock.version)
+
     if art.exists():
+        if rebuild and src.exists() and build.needs_rebuild(src, art):
+            return NeedsBuild(lock.name, src, art)
         return AlreadyBuilt(lock.name, art)
 
-    src = registry.src_path(env, lock.name, lock.version)
     if src.exists():
         return NeedsBuild(lock.name, src, art)
 
@@ -65,7 +68,7 @@ def plan(lock: LockedPackage, *, env: LocalRegistry) -> InstallPlan:
         case ArtifactReference() as ref:
             return NeedsFetchArtifact(lock.name, ref, art)
 
-    raise NotImplementedError()
+    raise NotImplementedError(lock.name)
 
 
 def _symlink(name: str, artifact: Path, target: Path) -> InstallFailure | InstallSuccess:

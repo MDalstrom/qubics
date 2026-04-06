@@ -4,6 +4,14 @@ else
   BUILD_DIR := .
 endif
 
-$(BUILD_DIR)/rs-hello.dylib: src/lib.rs Cargo.toml
-	cargo build --release
-	cp target/release/librs_hello.dylib $(BUILD_DIR)
+NAME  := rs-hello
+DYLIB := librs_hello.dylib
+
+all: $(BUILD_DIR)/$(DYLIB) $(BUILD_DIR)/manifest.toml
+
+$(BUILD_DIR)/$(DYLIB): src/lib.rs
+	cargo build
+	@cp target/debug/$(DYLIB) $(BUILD_DIR)/
+
+$(BUILD_DIR)/manifest.toml: $(BUILD_DIR)/$(DYLIB)
+	@cp manifest.toml $(BUILD_DIR)/

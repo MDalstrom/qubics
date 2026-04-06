@@ -1,0 +1,8 @@
+[package]
+name = "qubics-build"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+bindgen = "0.72.1"
+regex = "1"

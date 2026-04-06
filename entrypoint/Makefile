@@ -6,11 +6,10 @@ endif
 
 DEPS = build/
 
-$(BUILD_DIR)/main: $(DEPS)/lock.toml main.c
+$(BUILD_DIR)/main: entrypoint.c adapter.c
 	gcc -Wall -Wextra -std=c11 -O2 \
 		-I$(DEPS) \
-		main.c -o $(BUILD_DIR)/main
-
-$(DEPS)/lock.toml: manifest.toml
-	epk install --manifest=manifest.toml --build=$(DEPS)
-
+		entrypoint.c adapter.c \
+		$(DEPS)/ecs/ecs.dylib \
+		$(DEPS)/scheduler/scheduler.dylib \
+		-o $@

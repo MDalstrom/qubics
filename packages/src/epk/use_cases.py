@@ -49,11 +49,11 @@ def lock(manifest_path: Path, lock_path: Path, *, env: LocalRegistry) -> list[Lo
     return locked
 
 
-def install(locks: list[LockedPackage], build_path: Path, *, env: LocalRegistry):
+def install(locks: list[LockedPackage], build_path: Path, *, env: LocalRegistry, rebuild: bool = False):
     log.info("installing %d package(s) to %s", len(locks), build_path)
     build_path.mkdir(parents=True, exist_ok=True)
 
-    plans = [install_mod.plan(lock, env=env) for lock in locks]
+    plans = [install_mod.plan(lock, env=env, rebuild=rebuild) for lock in locks]
     installs = []
     for plan in plans:
         log.debug("executing plan: %s", plan)

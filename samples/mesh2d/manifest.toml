@@ -1,8 +1,6 @@
 name = "mesh2d"
 version = "0.0.1"
 deps = [
-  "bridge-contracts",
-  "backend-contracts",
-  "ecs",
+  "api",
   "backend-metal"
 ]

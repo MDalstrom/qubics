@@ -2,46 +2,63 @@
 #import <MetalKit/MetalKit.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
+#include <string.h>
+#include <unistd.h>
 
-#include "backend-contracts/contract.h"
+#include "api/contract.h"
 #include "backend-metal/contract.h"
-#include "ecs/api.h"
 #include "mesh2d.h"
 
-// ---------------------------------------------------------------------------
-// Global state (reset on each qubics_plugin call / hot-reload)
-// ---------------------------------------------------------------------------
+static uint32_t component_id(const char *s) {
+    uint32_t hash = 2166136261u;
+    for (; *s; s++) hash = hash * 16777619u ^ (uint8_t)*s;
+    return hash;
+}
 
-static ComponentDescriptor       *g_mesh2d_desc     = NULL;
-static id<MTLRenderPipelineState> g_pipeline         = nil;
-static bool                       g_entities_created = false;
+static id<MTLRenderPipelineState> g_pipeline = nil;
+static RegistryApi g_api;
 
-// ---------------------------------------------------------------------------
-// Shaders
-// ---------------------------------------------------------------------------
+static ComponentDescriptor g_transform_comp = NULL;
+static ComponentDescriptor g_viewport_comp  = NULL;
+static ComponentDescriptor g_mesh_comp      = NULL;
 
-static NSString *kShaderSrc = @""
-    "#include <metal_stdlib>\n"
-    "using namespace metal;\n"
-    "\n"
-    "vertex float4 vert_main(uint vid           [[vertex_id]],\n"
-    "                        constant float2 *v [[buffer(0)]]) {\n"
-    "    return float4(v[vid], 0.0, 1.0);\n"
-    "}\n"
-    "\n"
-    "fragment float4 frag_main(float4             pos [[stage_in]],\n"
-    "                          constant float4 &color [[buffer(0)]]) {\n"
-    "    return color;\n"
-    "}\n";
+static void mat4_identity(float *m) {
+    memset(m, 0, 64);
+    m[0] = m[5] = m[10] = m[15] = 1.0f;
+}
+
+static void mat4_mul(float *out, const float *a, const float *b) {
+    for (int col = 0; col < 4; col++)
+        for (int row = 0; row < 4; row++) {
+            float s = 0;
+            for (int k = 0; k < 4; k++)
+                s += a[k*4+row] * b[col*4+k];
+            out[col*4+row] = s;
+        }
+}
+
+static void ortho(float *m, float l, float r, float b, float t, float n, float f) {
+    memset(m, 0, 64);
+    m[0]  =  2.0f / (r - l);
+    m[5]  =  2.0f / (t - b);
+    m[10] = -2.0f / (f - n);
+    m[12] = -(r + l) / (r - l);
+    m[13] = -(t + b) / (t - b);
+    m[14] = -(f + n) / (f - n);
+    m[15] =  1.0f;
+}
 
 static void setup_pipeline(id<MTLDevice> device, MTKView *view) {
+    const char *build = getenv("QUBICS_PATH");
+    if (!build) { fprintf(stderr, "[mesh2d] QUBICS_PATH not set\n"); return; }
+
+    char path[1024];
+    snprintf(path, sizeof(path), "%s/mesh2d/mesh2d.metallib", build);
+
     NSError *err = nil;
-    id<MTLLibrary> lib = [device newLibraryWithSource:kShaderSrc
-                                              options:nil
-                                                error:&err];
+    id<MTLLibrary> lib = [device newLibraryWithURL:[NSURL fileURLWithPath:@(path)] error:&err];
     if (!lib) {
-        fprintf(stderr, "[mesh2d] shader compile error: %s\n",
+        fprintf(stderr, "[mesh2d] failed to load %s: %s\n", path,
                 [[err localizedDescription] UTF8String]);
         return;
     }
@@ -52,23 +69,21 @@ static void setup_pipeline(id<MTLDevice> device, MTKView *view) {
     desc.colorAttachments[0].pixelFormat = view.colorPixelFormat;
 
     g_pipeline = [device newRenderPipelineStateWithDescriptor:desc error:&err];
-    if (!g_pipeline) {
-        fprintf(stderr, "[mesh2d] pipeline state error: %s\n",
-                [[err localizedDescription] UTF8String]);
-    }
+    if (!g_pipeline)
+        fprintf(stderr, "[mesh2d] pipeline error: %s\n", [[err localizedDescription] UTF8String]);
 }
 
-// ---------------------------------------------------------------------------
-// System
-// ---------------------------------------------------------------------------
+static void mesh2d_render(WorldApi *world, void *ctx_ptr) {
+    if (!ctx_ptr) return;
 
-static void mesh2d_system(WorldApi *world_ptr, void *ctx_ptr) {
-    if (!ctx_ptr || !g_mesh2d_desc) return;
+    if (!g_transform_comp) g_transform_comp = g_api.find(component_id("Transform"));
+    if (!g_viewport_comp)  g_viewport_comp  = g_api.find(component_id("Viewport"));
+    if (!g_mesh_comp)      g_mesh_comp      = g_api.find(component_id("Mesh2DShared"));
+    if (!g_transform_comp || !g_viewport_comp || !g_mesh_comp) return;
 
-    RenderContext *rc   = (RenderContext *)ctx_ptr;
-
-    MTKView            *view  = (__bridge MTKView *)rc->mtkView;
-    id<MTLDevice>       dev   = (__bridge id<MTLDevice>)rc->device;
+    RenderContext *rc = (RenderContext *)ctx_ptr;
+    MTKView *view = (__bridge MTKView *)rc->mtkView;
+    id<MTLDevice> dev = (__bridge id<MTLDevice>)rc->device;
     id<MTLCommandQueue> queue = (__bridge id<MTLCommandQueue>)rc->commandQueue;
 
     if (!g_pipeline) {
@@ -76,85 +91,71 @@ static void mesh2d_system(WorldApi *world_ptr, void *ctx_ptr) {
         if (!g_pipeline) return;
     }
 
-    // Seed demo entities once per load cycle
-    if (!g_entities_created) {
-        g_entities_created = true;
+    float vp[16];
+    mat4_identity(vp);
 
-        ComponentDescriptor *desc_arr[] = { g_mesh2d_desc };
-        Archetype arch = { 1, desc_arr };
-
-        // Blue triangle (NDC coords)
-        Entity tri = world_ptr->create_entity(arch);
-        Mesh2D *t = &((Mesh2D *)tri.chunk->buffers[0])[tri.idx];
-        t->point_count = 3;
-        t->points[0] = (Point2D){  0.0f,  0.5f };
-        t->points[1] = (Point2D){ -0.5f, -0.5f };
-        t->points[2] = (Point2D){  0.5f, -0.5f };
-        t->r = 0.2f; t->g = 0.6f; t->b = 1.0f; t->a = 1.0f;
-
-        // Orange quad (4 points — triangle fan renders 2 triangles)
-        Entity quad = world_ptr->create_entity(arch);
-        Mesh2D *q = &((Mesh2D *)quad.chunk->buffers[0])[quad.idx];
-        q->point_count = 4;
-        q->points[0] = (Point2D){ -0.9f,  0.9f };
-        q->points[1] = (Point2D){ -0.9f,  0.6f };
-        q->points[2] = (Point2D){ -0.6f,  0.6f };
-        q->points[3] = (Point2D){ -0.6f,  0.9f };
-        q->r = 1.0f; q->g = 0.5f; q->b = 0.1f; q->a = 1.0f;
+    ComponentDescriptor cam_generic[] = {g_viewport_comp, g_transform_comp};
+    Archetype cam_arch = {.generic = cam_generic, .generic_count = 2};
+    QueryResult cam_r = world->query_at_least(cam_arch);
+    for (size_t i = 0; i < cam_r.count; i++) {
+        if (cam_r.counts[i] == 0) continue;
+        void **bufs = (void **)cam_r.buffers[i];
+        float proj[16];
+        ortho(proj,
+              ((Viewport *)bufs[0])[0].left,  ((Viewport *)bufs[0])[0].right,
+              ((Viewport *)bufs[0])[0].bottom, ((Viewport *)bufs[0])[0].top,
+              ((Viewport *)bufs[0])[0].near_z, ((Viewport *)bufs[0])[0].far_z);
+        mat4_mul(vp, proj, ((Transform *)bufs[1])[0].matrix);
+        break;
     }
 
-    // Render pass — plugin owns the clear and present
     MTLRenderPassDescriptor *rpd = view.currentRenderPassDescriptor;
     if (!rpd) return;
     rpd.colorAttachments[0].clearColor = MTLClearColorMake(0.08, 0.08, 0.12, 1.0);
     rpd.colorAttachments[0].loadAction = MTLLoadActionClear;
 
-    id<MTLCommandBuffer>         cmdbuf = [queue commandBuffer];
-    id<MTLRenderCommandEncoder>  enc    = [cmdbuf renderCommandEncoderWithDescriptor:rpd];
+    id<MTLCommandBuffer> cmdbuf = [queue commandBuffer];
+    id<MTLRenderCommandEncoder> enc = [cmdbuf renderCommandEncoderWithDescriptor:rpd];
     [enc setRenderPipelineState:g_pipeline];
+    [enc setVertexBytes:vp length:sizeof(vp) atIndex:2];
 
-    // Query ECS for all Mesh2D entities
-    ComponentDescriptor *q_descs[] = { g_mesh2d_desc };
-    Archetype q_arch = { 1, q_descs };
-    ChunkContainer *containers[64];
-    size_t n = world_ptr->query(q_arch, containers, 64);
+    Mesh2DShared *mesh = (Mesh2DShared *)world->get_shared_buffer(g_mesh_comp);
+    if (!mesh) {
+        [enc endEncoding];
+        [cmdbuf commit];
+        return;
+    }
 
-    for (size_t ci = 0; ci < n; ci++) {
-        ChunkContainer *container = containers[ci];
-        for (size_t chi = 0; chi < container->chunks_count; chi++) {
-            Chunk  *chunk  = &container->chunks[chi];
-            Mesh2D *meshes = (Mesh2D *)chunk->buffers[0];
+    size_t page = (size_t)getpagesize();
+    size_t vert_bytes = mesh->vertex_count * 2 * sizeof(float);
+    size_t vert_aligned = (vert_bytes + page - 1) & ~(page - 1);
+    id<MTLBuffer> vtx = [dev newBufferWithBytesNoCopy:mesh->vertex_buffer
+                                               length:vert_aligned
+                                              options:MTLResourceStorageModeShared
+                                          deallocator:nil];
+    [enc setVertexBuffer:vtx offset:0 atIndex:0];
+    [enc setFragmentBytes:mesh->color length:sizeof(mesh->color) atIndex:0];
 
-            for (size_t ei = 0; ei < chunk->entities_count; ei++) {
-                Mesh2D *mesh = &meshes[ei];
-                if (mesh->point_count < 3) continue;
-
-                // Expand to triangle list via fan from points[0]
-                size_t tri_count = mesh->point_count - 2;
-                float verts[(MESH2D_MAX_POINTS - 2) * 6];
-                size_t vi = 0;
-                for (size_t i = 1; i + 1 < mesh->point_count; i++) {
-                    verts[vi++] = mesh->points[0].x;
-                    verts[vi++] = mesh->points[0].y;
-                    verts[vi++] = mesh->points[i].x;
-                    verts[vi++] = mesh->points[i].y;
-                    verts[vi++] = mesh->points[i + 1].x;
-                    verts[vi++] = mesh->points[i + 1].y;
-                }
-
-                float color[4] = { mesh->r, mesh->g, mesh->b, mesh->a };
-
-                [enc setVertexBytes:verts
-                             length:vi * sizeof(float)
-                            atIndex:0];
-                [enc setFragmentBytes:color
-                               length:sizeof(color)
-                              atIndex:0];
-                [enc drawPrimitives:MTLPrimitiveTypeTriangle
-                        vertexStart:0
-                        vertexCount:(NSUInteger)(tri_count * 3)];
-            }
-        }
+    ComponentDescriptor mesh_generic[] = {g_transform_comp};
+    Archetype mesh_arch = {
+        .generic = mesh_generic, .generic_count = 1,
+        .shared  = &g_mesh_comp, .shared_count  = 1,
+    };
+    QueryResult mesh_r = world->query_at_least(mesh_arch);
+    for (size_t i = 0; i < mesh_r.count; i++) {
+        if (mesh_r.counts[i] == 0) continue;
+        void **bufs = (void **)mesh_r.buffers[i];
+        size_t inst_bytes = sizeof(Transform) * mesh_r.counts[i];
+        size_t inst_aligned = (inst_bytes + page - 1) & ~(page - 1);
+        id<MTLBuffer> inst = [dev newBufferWithBytesNoCopy:bufs[0]
+                                                    length:inst_aligned
+                                                   options:MTLResourceStorageModeShared
+                                               deallocator:nil];
+        [enc setVertexBuffer:inst offset:0 atIndex:1];
+        [enc drawPrimitives:MTLPrimitiveTypeTriangle
+                vertexStart:0
+                vertexCount:mesh->vertex_count
+              instanceCount:(NSUInteger)mesh_r.counts[i]];
     }
 
     [enc endEncoding];
@@ -162,21 +163,22 @@ static void mesh2d_system(WorldApi *world_ptr, void *ctx_ptr) {
     [cmdbuf commit];
 }
 
-static ComponentDescriptor *g_writes_buf[1];
+PluginState qubics_plugin(RegistryApi api) {
+    g_api            = api;
+    g_transform_comp = NULL;
+    g_viewport_comp  = NULL;
+    g_mesh_comp      = NULL;
+    g_pipeline       = nil;
 
-PluginState qubics_plugin(RegistryApi registry) {
-    g_mesh2d_desc     = registry.component_register(sizeof(Mesh2D), "Mesh2D");
-    g_pipeline        = nil;
-    g_entities_created = false;
-
-    g_writes_buf[0] = g_mesh2d_desc;
-
-    SystemDescriptor *descs = malloc(sizeof(SystemDescriptor));
-    descs[0] = (SystemDescriptor){
-        .run    = mesh2d_system,
-        .reads  = { 0, NULL },
-        .writes = { 1, g_writes_buf },
+    SystemDescriptor *render_descs = malloc(sizeof(SystemDescriptor));
+    render_descs[0] = (SystemDescriptor){
+        .fn     = (void (*)(void *))mesh2d_render,
+        .reads  = {NULL, 0, NULL, 0},
+        .writes = {NULL, 0, NULL, 0},
     };
 
-    return (PluginState){ .descriptors = descs, .count = 1 };
+    return (PluginState){
+        .render       = render_descs,
+        .render_count = 1,
+    };
 }

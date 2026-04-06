@@ -2,18 +2,21 @@
 #define MESH2D_H
 
 #include <stddef.h>
-
-#define MESH2D_MAX_POINTS 64
-
-typedef struct {
-    float x;
-    float y;
-} Point2D;
+#include <stdint.h>
 
 typedef struct {
-    Point2D points[MESH2D_MAX_POINTS];
-    size_t  point_count;
-    float   r, g, b, a;
-} Mesh2D;
+    float matrix[16];
+} Transform;
+
+typedef struct {
+    float left, right, bottom, top;
+    float near_z, far_z;
+} Viewport;
+
+typedef struct {
+    void    *vertex_buffer;
+    uint32_t vertex_count;
+    float    color[4];
+} Mesh2DShared;
 
 #endif /* MESH2D_H */
